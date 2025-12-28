@@ -15,14 +15,14 @@
       <!-- Formulario -->
       <form @submit.prevent="handleSubmit" class="space-y-5">
         <div class="space-y-2">
-          <label for="email" class="text-sm font-medium">Correo Electrónico</label>
+          <label for="email" class="text-sm font-medium">Usuario</label>
           <div class="relative">
             <Mail class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               id="email"
               v-model="email"
-              type="email"
-              placeholder="usuario@empresa.com"
+              type="text"
+              placeholder="superadmin"
               class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
               required
             />
@@ -107,10 +107,28 @@ const handleSubmit = async () => {
   errorMessage.value = ''
 
   try {
-    await authStore.login(email.value, password.value)
+    const response = await authStore.login(email.value, password.value)
+    
+    // Verificar que el login fue exitoso y el usuario tiene rol
+    if (!response.user || typeof response.user.rol !== 'number') {
+      throw new Error('Error en los datos del usuario')
+    }
+
+    // Log para debugging (remover en producción)
+    console.log('Login exitoso:', {
+      nombre: response.user.nombre,
+      rol: response.user.rol,
+      email: response.user.email
+    })
+
+    // Navegar al dashboard
     router.push('/dashboard')
   } catch (error: any) {
-    errorMessage.value = error.response?.data?.message || 'Error al iniciar sesión. Verifica tus credenciales.'
+    console.error('Error en login:', error)
+    errorMessage.value = error.response?.data?.message || error.message || 'Error al iniciar sesión. Verifica tus credenciales.'
+    
+    // Limpiar campos en caso de error
+    password.value = ''
   } finally {
     loading.value = false
   }
