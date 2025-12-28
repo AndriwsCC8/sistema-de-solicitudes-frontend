@@ -44,7 +44,7 @@
           </select>
 
           <button
-            @click="emit('navigate', 'new-request')"
+            @click="router.push('/dashboard/new-request')"
             class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
           >
             <Plus class="w-5 h-5" />
@@ -86,7 +86,7 @@
             <p class="text-sm text-gray-600">{{ request.area }} • {{ formatDate(request.date) }}</p>
           </div>
           <button
-            @click="emit('navigate', 'request-detail', request.id)"
+            @click="router.push(`/dashboard/request-detail/${request.id}`)"
             class="inline-flex items-center gap-2 px-4 py-2 text-[#0f3a72] hover:bg-gray-50 rounded-md transition-colors"
           >
             <Eye class="w-4 h-4" />
@@ -104,6 +104,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Plus, Search, Eye } from 'lucide-vue-next'
 
 interface Request {
@@ -116,11 +117,7 @@ interface Request {
   date: string
 }
 
-interface MyRequestsEmits {
-  (e: 'navigate', page: string, requestId?: string): void
-}
-
-const emit = defineEmits<MyRequestsEmits>()
+const router = useRouter()
 
 const searchTerm = ref('')
 const statusFilter = ref('all')

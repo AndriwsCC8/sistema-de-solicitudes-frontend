@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="mb-6">
       <button
-        @click="emit('navigate', 'my-requests')"
+        @click="router.push('/dashboard')"
         class="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
       >
         <ArrowLeft class="w-4 h-4" />
@@ -193,24 +193,17 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, File } from 'lucide-vue-next'
 
-interface RequestDetailProps {
-  requestId?: string
-}
-
-interface RequestDetailEmits {
-  (e: 'navigate', page: string): void
-}
-
-const props = defineProps<RequestDetailProps>()
-const emit = defineEmits<RequestDetailEmits>()
+const router = useRouter()
+const route = useRoute()
 
 const newComment = ref('')
 
 // Mock data - en producción esto vendría de una API
 const request = {
-  id: props.requestId || '1',
+  id: (route.params.id as string) || '1',
   number: 'REQ-2024-001',
   subject: 'Acceso a carpeta compartida',
   description: 'Necesito acceso de lectura y escritura a la carpeta compartida del departamento de ventas para poder colaborar en los reportes mensuales.\n\nLa carpeta está ubicada en: \\\\servidor\\ventas\\reportes\n\nMi usuario de red es: juan.perez',

@@ -49,10 +49,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Home, Plus, Inbox, Settings, LogOut } from 'lucide-vue-next'
+import { ROLES, getRoleName as getRoleNameUtil, hasMinRole } from '../../constants/roles'
 
 interface SidebarProps {
   activePage: string
-  userRole: string
+  userRole: number // 1: Usuario, 2: Admin, 3: SuperAdmin, 4: Agente
 }
 
 interface SidebarEmits {
@@ -64,36 +65,26 @@ const props = defineProps<SidebarProps>()
 const emit = defineEmits<SidebarEmits>()
 
 const menuItems = computed(() => {
+  const userRole = props.userRole
+  console.log('📊 [Sidebar] ROL RECIBIDO COMO PROP:', userRole, '(tipo:', typeof userRole, ')')
+  console.log('📊 [Sidebar] Props completos:', JSON.stringify(props))
   const baseItems = [
-    { id: 'my-requests', label: 'Mis Solicitudes', icon: Home, roles: ['user', 'agent', 'admin', 'super-admin'] },
-    { id: 'new-request', label: 'Nueva Solicitud', icon: Plus, roles: ['user', 'agent', 'admin', 'super-admin'] },
+    { id: 'my-requests', label: 'Mis Solicitudes', icon: Home, minRole: ROLES.USUARIO },
+    { id: 'new-request', label: 'Nueva Solicitud', icon: Plus, minRole: ROLES.USUARIO },
   ]
 
   const agentItems = [
-    { id: 'area-inbox', label: 'Bandeja de Área', icon: Inbox, roles: ['agent', 'admin', 'super-admin'] },
+    { id: 'area-inbox', label: 'Bandeja de Área', icon: Inbox, minRole: ROLES.AGENTE },
   ]
 
   const adminItems = [
-    { id: 'administration', label: 'Administración', icon: Settings, roles: ['admin', 'super-admin'] },
+    { id: 'administration', label: 'Administración', icon: Settings, minRole: ROLES.ADMIN },
   ]
 
   return [...baseItems, ...agentItems, ...adminItems].filter(item => 
-    item.roles.includes(props.userRole)
+    hasMinRole(userRole, item.minRole)
   )
 })
 
-const getRoleName = (role: string): string => {
-  switch (role) {
-    case 'user':
-      return 'Usuario'
-    case 'agent':
-      return 'Agente de Área'
-    case 'admin':
-      return 'Administrador'
-    case 'super-admin':
-      return 'Super Administrador'
-    default:
-      return 'Usuario'
-  }
-}
+const getRoleName = getRoleNameUtil
 </script>

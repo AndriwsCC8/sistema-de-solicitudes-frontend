@@ -159,7 +159,7 @@
           </button>
           <button
             type="button"
-            @click="emit('navigate', 'my-requests')"
+            @click="router.push('/dashboard')"
             class="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
           >
             <X class="w-5 h-5" />
@@ -173,13 +173,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Save, X, Upload, File } from 'lucide-vue-next'
 
-interface NewRequestEmits {
-  (e: 'navigate', page: string): void
-}
-
-const emit = defineEmits<NewRequestEmits>()
+const router = useRouter()
 
 const area = ref('')
 const requestType = ref('')
@@ -199,6 +196,6 @@ const handleFileChange = (e: Event) => {
 const handleSave = () => {
   // Here you would normally save the request
   alert('¡Solicitud creada exitosamente!')
-  emit('navigate', 'my-requests')
+  router.push('/dashboard')
 }
 </script>

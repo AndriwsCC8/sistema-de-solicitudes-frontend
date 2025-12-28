@@ -275,13 +275,13 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Rol</label>
               <select 
-                v-model="newUser.role"
+                v-model.number="newUser.role"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
               >
-                <option value="user">Usuario</option>
-                <option value="agent">Agente</option>
-                <option value="admin">Administrador</option>
-                <option value="super-admin">Super Administrador</option>
+                <option :value="1">Usuario</option>
+                <option :value="4">Agente de Área</option>
+                <option :value="2">Administrador</option>
+                <option :value="3">Super Administrador</option>
               </select>
             </div>
             <div>
@@ -341,33 +341,33 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useAuthStore } from '../../stores/authStore'
+import { ROLES, hasMinRole } from '../../constants/roles'
 
-interface AdministrationProps {
-  userRole: string
-}
+const authStore = useAuthStore()
+// Usar el getter del store para el rol
+const userRole = computed(() => authStore.userRole)
 
-const props = defineProps<AdministrationProps>()
-
-const activeTab = ref(props.userRole === 'super-admin' ? 'users' : 'areas')
+const activeTab = ref(userRole.value === ROLES.SUPER_ADMIN ? 'users' : 'areas')
 
 const tabs = computed(() => {
   const allTabs = [
-    { id: 'users', label: 'Usuarios', roles: ['super-admin'] },
-    { id: 'areas', label: 'Áreas', roles: ['admin', 'super-admin'] },
-    { id: 'categories', label: 'Categorías', roles: ['admin', 'super-admin'] },
-    { id: 'settings', label: 'Configuración', roles: ['admin', 'super-admin'] },
-    { id: 'reports', label: 'Reportes', roles: ['admin', 'super-admin'] }
+    { id: 'users', label: 'Usuarios', minRole: ROLES.SUPER_ADMIN },
+    { id: 'areas', label: 'Áreas', minRole: ROLES.ADMIN },
+    { id: 'categories', label: 'Categorías', minRole: ROLES.ADMIN },
+    { id: 'settings', label: 'Configuración', minRole: ROLES.ADMIN },
+    { id: 'reports', label: 'Reportes', minRole: ROLES.ADMIN }
   ]
-  return allTabs.filter(tab => tab.roles.includes(props.userRole))
+  return allTabs.filter(tab => hasMinRole(userRole.value, tab.minRole))
 })
 
 const showNewUserModal = ref(false)
 
 const users = [
-  { id: 1, name: 'Juan Pérez', email: 'juan.perez@empresa.com', role: 'agent', area: 'Soporte TI', active: true },
-  { id: 2, name: 'María García', email: 'maria.garcia@empresa.com', role: 'admin', area: 'Administración', active: true },
-  { id: 3, name: 'Carlos López', email: 'carlos.lopez@empresa.com', role: 'user', area: 'Ventas', active: true },
-  { id: 4, name: 'Ana Martínez', email: 'ana.martinez@empresa.com', role: 'agent', area: 'Recursos Humanos', active: false },
+  { id: 1, name: 'Juan Pérez', email: 'juan.perez@empresa.com', role: 4, area: 'Soporte TI', active: true },      // Agente
+  { id: 2, name: 'María García', email: 'maria.garcia@empresa.com', role: 2, area: 'Administración', active: true }, // Admin
+  { id: 3, name: 'Carlos López', email: 'carlos.lopez@empresa.com', role: 1, area: 'Ventas', active: true },         // Usuario
+  { id: 4, name: 'Ana Martínez', email: 'ana.martinez@empresa.com', role: 4, area: 'Recursos Humanos', active: false }, // Agente
 ]
 
 const areas = [
@@ -384,30 +384,24 @@ const categories = [
   { id: 4, name: 'Solicitud de Información', description: 'Consultas generales', requestCount: 21 },
 ]
 
-const getRoleBadgeClass = (role: string): string => {
-  const classes: Record<string, string> = {
-    'admin': 'px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700',
-    'super-admin': 'px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700',
-    'agent': 'px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700',
-    'user': 'px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700'
+const getRoleBadgeClass = (role: number): string => {
+  const classes: Record<number, string> = {
+    3: 'px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700',      // Super Admin (3)
+    2: 'px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700', // Admin (2)
+    4: 'px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700',     // Agente (4)
+    1: 'px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700'      // Usuario (1)
   }
-  return classes[role] || classes['user']
+  return classes[role] || classes[1]
 }
 
-const getRoleLabel = (role: string): string => {
-  const labels: Record<string, string> = {
-    'admin': 'Administrador',
-    'super-admin': 'Super Admin',
-    'agent': 'Agente',
-    'user': 'Usuario'
-  }
-  return labels[role] || 'Usuario'
-}
+import { getRoleName } from '../../constants/roles'
+
+const getRoleLabel = getRoleName
 
 const newUser = ref({
   name: '',
   email: '',
-  role: 'user',
+  role: 1, // Usuario por defecto
   area: '',
   password: '',
   active: true
@@ -440,7 +434,7 @@ const createUser = () => {
   newUser.value = {
     name: '',
     email: '',
-    role: 'user',
+    role: 1, // Usuario por defecto
     area: '',
     password: '',
     active: true

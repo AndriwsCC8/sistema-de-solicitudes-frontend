@@ -120,7 +120,7 @@
           </div>
           <div class="flex flex-col gap-2 ml-4">
             <button
-              @click="emit('navigate', 'request-detail', request.id)"
+              @click="router.push(`/dashboard/request-detail/${request.id}`)"
               class="inline-flex items-center gap-2 px-4 py-2 text-[#0f3a72] hover:bg-gray-50 rounded-md transition-colors text-sm"
             >
               <Eye class="w-4 h-4" />
@@ -161,6 +161,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search, Eye, User } from 'lucide-vue-next'
 
 interface Request {
@@ -176,11 +177,7 @@ interface Request {
   assignedTo?: string
 }
 
-interface AreaInboxEmits {
-  (e: 'navigate', page: string, requestId?: string): void
-}
-
-const emit = defineEmits<AreaInboxEmits>()
+const router = useRouter()
 
 const searchTerm = ref('')
 const statusFilter = ref('all')

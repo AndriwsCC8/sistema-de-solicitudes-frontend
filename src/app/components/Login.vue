@@ -15,14 +15,14 @@
       <!-- Formulario -->
       <form @submit.prevent="handleSubmit" class="space-y-5">
         <div class="space-y-2">
-          <label for="email" class="text-sm font-medium">Correo Electrónico</label>
+          <label for="email" class="text-sm font-medium">Usuario</label>
           <div class="relative">
             <Mail class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               id="email"
               v-model="email"
-              type="email"
-              placeholder="usuario@empresa.com"
+              type="text"
+              placeholder="superadmin"
               class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
               required
             />
@@ -44,23 +44,6 @@
           </div>
         </div>
 
-        <div class="space-y-2">
-          <label for="role" class="text-sm font-medium">Tipo de Usuario (Demo)</label>
-          <div class="relative">
-            <User class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
-            <select
-              id="role"
-              v-model="role"
-              class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72] appearance-none bg-white"
-            >
-              <option value="user">👤 Usuario Normal</option>
-              <option value="agent">👨‍💼 Agente de Área</option>
-              <option value="admin">⚙️ Administrador</option>
-              <option value="super-admin">👑 Super Administrador</option>
-            </select>
-          </div>
-        </div>
-
         <div class="flex items-center justify-between text-sm">
           <label class="flex items-center gap-2 cursor-pointer">
             <input
@@ -75,11 +58,18 @@
           </a>
         </div>
 
+        <!-- Mensaje de error -->
+        <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p class="text-sm text-red-600 text-center">{{ errorMessage }}</p>
+        </div>
+
         <button
           type="submit"
-          class="w-full bg-[#0f3a72] hover:bg-[#0d3260] text-white font-medium py-3 rounded-lg transition-colors"
+          :disabled="loading"
+          class="w-full bg-[#0f3a72] hover:bg-[#0d3260] text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Iniciar Sesión
+          <span v-if="loading">Iniciando sesión...</span>
+          <span v-else>Iniciar Sesión</span>
         </button>
 
         <div class="text-center text-sm text-gray-600">
@@ -99,21 +89,48 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Settings, Lock, Mail, User } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { Settings, Lock, Mail } from 'lucide-vue-next'
+import { useAuthStore } from '../../stores/authStore'
 
-interface LoginEmits {
-  (e: 'login', role: string): void
-}
-
-const emit = defineEmits<LoginEmits>()
+const router = useRouter()
+const authStore = useAuthStore()
 
 const email = ref('')
 const password = ref('')
-const role = ref('user')
 const rememberMe = ref(false)
+const loading = ref(false)
+const errorMessage = ref('')
 
-const handleSubmit = () => {
-  // Aquí normalmente validarías las credenciales
-  emit('login', role.value)
+const handleSubmit = async () => {
+  loading.value = true
+  errorMessage.value = ''
+
+  try {
+    const response = await authStore.login(email.value, password.value)
+    
+    // Verificar que el login fue exitoso y el usuario tiene rol
+    if (!response.user || typeof response.user.rol !== 'number') {
+      throw new Error('Error en los datos del usuario')
+    }
+
+    // Log para debugging (remover en producción)
+    console.log('Login exitoso:', {
+      nombre: response.user.nombre,
+      rol: response.user.rol,
+      email: response.user.email
+    })
+
+    // Navegar al dashboard
+    router.push('/dashboard')
+  } catch (error: any) {
+    console.error('Error en login:', error)
+    errorMessage.value = error.response?.data?.message || error.message || 'Error al iniciar sesión. Verifica tus credenciales.'
+    
+    // Limpiar campos en caso de error
+    password.value = ''
+  } finally {
+    loading.value = false
+  }
 }
 </script>
