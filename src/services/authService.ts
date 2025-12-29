@@ -36,7 +36,7 @@ interface LoginResponse {
 const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
     const credentials: LoginCredentials = { NombreUsuario: email, Password: password };
-    const response = await api.post<BackendLoginResponse>('/api/auth/login', credentials);
+    const response = await api.post<BackendLoginResponse>('/auth/login', credentials);
     
     // ⚠️ CRÍTICO: Loguear la respuesta RAW del backend ANTES de cualquier procesamiento
     console.log('🚨🚨🚨 RESPUESTA RAW DEL BACKEND (SIN PROCESAR) 🚨🚨🚨');
