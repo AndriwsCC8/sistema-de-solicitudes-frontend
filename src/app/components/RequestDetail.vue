@@ -35,7 +35,7 @@
           Volver
         </button>
         <div class="flex items-start justify-between">
-          <div>
+          <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
               <h1 class="text-2xl font-semibold text-gray-900">{{ numeroSolicitud }}</h1>
               <span :class="['px-3 py-1 text-sm font-medium rounded-full border', getPrioridadColor(prioridadTexto)]">
@@ -45,8 +45,25 @@
                 {{ estadoTexto }}
               </span>
             </div>
-            <h2 class="text-xl text-gray-700">{{ solicitud.asunto }}</h2>
+            <h2 v-if="!modoEdicion" class="text-xl text-gray-700">{{ solicitud.asunto }}</h2>
+            <input 
+              v-else
+              v-model="asuntoEdit"
+              type="text"
+              class="text-xl text-gray-700 border-b-2 border-blue-500 focus:outline-none w-full"
+              placeholder="Asunto de la solicitud"
+            />
           </div>
+          
+          <!-- Botón Editar (solo si puede editar) -->
+          <button
+            v-if="puedeEditar && !modoEdicion"
+            @click="iniciarEdicion"
+            class="inline-flex items-center gap-2 px-4 py-2 text-[#0f3a72] border border-[#0f3a72] rounded-md hover:bg-[#0f3a72] hover:text-white transition-colors"
+          >
+            <Edit class="w-4 h-4" />
+            Editar Solicitud
+          </button>
         </div>
       </div>
 
@@ -56,8 +73,118 @@
           <!-- Description -->
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Descripción</h3>
-            <p v-if="solicitud.descripcion" class="text-gray-700 whitespace-pre-line">{{ solicitud.descripcion }}</p>
-            <p v-else class="text-gray-400 italic">Sin descripción</p>
+            <p v-if="!modoEdicion && solicitud.descripcion" class="text-gray-700 whitespace-pre-line">{{ solicitud.descripcion }}</p>
+            <p v-else-if="!modoEdicion" class="text-gray-400 italic">Sin descripción</p>
+            <textarea
+              v-else
+              v-model="descripcionEdit"
+              rows="6"
+              class="w-full px-3 py-2 border-2 border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              placeholder="Descripción detallada de la solicitud..."
+            ></textarea>
+            
+            <!-- Prioridad en modo edición -->
+            <div v-if="modoEdicion" class="mt-4">
+              <label class="text-sm font-medium text-gray-900 mb-2 block">Prioridad</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-3 p-3 border-2 rounded-md cursor-pointer hover:bg-gray-50" :class="prioridadEdit === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-300'">
+                  <input v-model.number="prioridadEdit" type="radio" :value="1" class="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div class="font-medium text-gray-900">🟢 Baja</div>
+                    <div class="text-sm text-gray-600">Puede esperar varios días</div>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 border-2 rounded-md cursor-pointer hover:bg-gray-50" :class="prioridadEdit === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-300'">
+                  <input v-model.number="prioridadEdit" type="radio" :value="2" class="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div class="font-medium text-gray-900">🟡 Media</div>
+                    <div class="text-sm text-gray-600">Necesita atención en 2-3 días</div>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 border-2 rounded-md cursor-pointer hover:bg-gray-50" :class="prioridadEdit === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-300'">
+                  <input v-model.number="prioridadEdit" type="radio" :value="3" class="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div class="font-medium text-gray-900">🔴 Alta</div>
+                    <div class="text-sm text-gray-600">Requiere atención inmediata</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Gestión de archivo en modo edición -->
+            <div v-if="modoEdicion" class="mt-4">
+              <label class="text-sm font-medium text-gray-900 mb-2 block">Archivo Adjunto</label>
+              
+              <!-- Archivo actual -->
+              <div v-if="solicitud.archivo && !eliminarArchivo" class="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <File class="w-4 h-4 text-gray-400" />
+                    <span class="text-sm text-gray-700">{{ solicitud.archivo.nombreArchivo }}</span>
+                  </div>
+                  <button
+                    type="button"
+                    @click="eliminarArchivo = true"
+                    class="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    <X class="w-4 h-4" />
+                  </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Haz clic en la X para eliminar</p>
+              </div>
+              
+              <!-- Mensaje de eliminación -->
+              <div v-if="eliminarArchivo" class="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p class="text-sm text-red-800">Se eliminará el archivo actual al guardar</p>
+                <button
+                  type="button"
+                  @click="eliminarArchivo = false"
+                  class="text-xs text-red-600 hover:text-red-800 mt-1"
+                >
+                  Cancelar eliminación
+                </button>
+              </div>
+              
+              <!-- Subir nuevo archivo -->
+              <div class="border-2 border-dashed border-blue-300 rounded-md p-4 text-center">
+                <Upload class="w-6 h-6 text-blue-400 mx-auto mb-2" />
+                <p class="text-sm text-gray-600 mb-2">{{ solicitud.archivo && !eliminarArchivo ? 'Reemplazar archivo' : 'Subir archivo' }}</p>
+                <input
+                  type="file"
+                  @change="handleFileChangeEdit"
+                  class="hidden"
+                  id="file-upload-edit"
+                />
+                <label
+                  for="file-upload-edit"
+                  class="inline-block px-3 py-1.5 bg-blue-100 text-blue-700 text-sm rounded-md cursor-pointer hover:bg-blue-200"
+                >
+                  Seleccionar archivo
+                </label>
+                <p v-if="nombreArchivoEdit" class="text-sm text-blue-700 mt-2">✓ {{ nombreArchivoEdit }}</p>
+              </div>
+            </div>
+            
+            <!-- Botones de acción en modo edición -->
+            <div v-if="modoEdicion" class="flex gap-3 mt-6 pt-6 border-t">
+              <button
+                @click="guardarEdicion"
+                :disabled="guardandoEdicion"
+                class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-[#0f3a72] text-white rounded-md hover:bg-[#0a2850] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div v-if="guardandoEdicion" class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <Save v-else class="w-5 h-5" />
+                {{ guardandoEdicion ? 'Guardando...' : 'Guardar Cambios' }}
+              </button>
+              <button
+                @click="cancelarEdicion"
+                :disabled="guardandoEdicion"
+                class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X class="w-5 h-5" />
+                Cancelar
+              </button>
+            </div>
           </div>
 
           <!-- Comments/Activity -->
@@ -76,10 +203,14 @@
                     {{ getInitials(getNombreUsuarioComentario(comentario)) }}
                   </div>
                   <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
                       <span class="font-semibold text-gray-900">{{ getNombreUsuarioComentario(comentario) }}</span>
+                      <span v-if="comentario.usuarioRolNombre" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                        {{ comentario.usuarioRolNombre }}
+                      </span>
                       <span class="text-sm text-gray-500">{{ formatDateTime(comentario.fechaCreacion) }}</span>
                     </div>
+                    <p v-if="comentario.usuarioDepartamento" class="text-xs text-gray-500 mb-2">{{ comentario.usuarioDepartamento }}</p>
                     <p class="text-gray-700 whitespace-pre-line">{{ comentario.contenido }}</p>
                   </div>
                 </div>
@@ -110,29 +241,26 @@
             </div>
           </div>
           
-          <!-- Archivos Adjuntos -->
-          <div v-if="solicitud.archivosAdjuntos && solicitud.archivosAdjuntos.length > 0" class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Archivos Adjuntos</h3>
-            <div class="space-y-2">
-              <div 
-                v-for="archivo in solicitud.archivosAdjuntos" 
-                :key="archivo.id"
-                class="flex items-center justify-between p-3 border border-gray-200 rounded-md hover:bg-gray-50"
-              >
-                <div class="flex items-center gap-3">
-                  <FileText class="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">{{ archivo.nombreArchivo }}</p>
-                    <p class="text-xs text-gray-500">{{ formatFileSize(archivo.tamanoBytes) }}</p>
-                  </div>
+          <!-- Archivo Adjunto -->
+          <div v-if="solicitud.archivo" class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Archivo Adjunto</h3>
+            <div class="flex items-center justify-between p-3 border border-gray-200 rounded-md hover:bg-gray-50">
+              <div class="flex items-center gap-3">
+                <FileText class="w-5 h-5 text-gray-400" />
+                <div>
+                  <p class="text-sm font-medium text-gray-900">{{ solicitud.archivo.nombreArchivo }}</p>
+                  <p class="text-xs text-gray-500">
+                    {{ solicitud.archivo.contentType }}
+                    <span v-if="solicitud.archivo.tamanoBytes"> · {{ formatFileSize(solicitud.archivo.tamanoBytes) }}</span>
+                  </p>
                 </div>
-                <button
-                  @click="descargarArchivo(archivo.id)"
-                  class="text-[#0f3a72] hover:text-[#0a2850]"
-                >
-                  <Download class="w-4 h-4" />
-                </button>
               </div>
+              <button
+                @click="descargarArchivo()"
+                class="text-[#0f3a72] hover:text-[#0a2850]"
+              >
+                <Download class="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -149,6 +277,23 @@
               <div class="flex-1">
                 <p class="font-semibold text-gray-900 text-base">{{ solicitanteNombre }}</p>
                 <p class="text-sm text-gray-600">{{ solicitanteEmail }}</p>
+                <div class="flex items-center gap-3 mt-2">
+                  <span v-if="solicitud.solicitanteDepartamento" class="inline-flex items-center text-xs text-gray-600">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    {{ solicitud.solicitanteDepartamento }}
+                  </span>
+                  <span v-if="solicitud.solicitanteRolNombre" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ solicitud.solicitanteRolNombre }}
+                  </span>
+                  <span v-if="solicitud.solicitanteCodigoEmpleado" class="inline-flex items-center text-xs text-gray-500">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    {{ solicitud.solicitanteCodigoEmpleado }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -180,6 +325,12 @@
                 <span :class="['inline-block px-2 py-1 text-xs font-medium rounded', getEstadoColor(estadoTexto)]">
                   {{ estadoTexto }}
                 </span>
+              </div>
+              <div v-if="estadoTexto === 'Rechazada' && solicitud.motivoRechazo" class="col-span-2">
+                <p class="text-xs text-gray-500 mb-1">Motivo del Rechazo</p>
+                <div class="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p class="text-sm text-red-800">{{ solicitud.motivoRechazo }}</p>
+                </div>
               </div>
               <div>
                 <p class="text-xs text-gray-500 mb-1">Fecha de creación</p>
@@ -223,13 +374,30 @@
                 :value="estadoTexto"
                 @change="actualizarEstado($event)"
               >
-                <option value="Nueva">Nueva</option>
-                <option value="Asignado">Asignado</option>
-                <option value="Resuelta">Resuelta</option>
-                <option value="Cerrada">Cerrada</option>
-                <option value="Cancelada">Cancelada</option>
-                <option value="Rechazada">Rechazada</option>
+                <option 
+                  v-for="estado in estadosDisponibles" 
+                  :key="estado" 
+                  :value="estado"
+                >
+                  {{ estado }}
+                </option>
               </select>
+              
+              <!-- Campo de motivo de rechazo (solo cuando se selecciona Rechazada) -->
+              <div v-if="estadoTemp === 'Rechazada'" class="space-y-2">
+                <label class="text-sm font-medium text-gray-900">Motivo del Rechazo *</label>
+                <textarea
+                  v-model="motivoRechazoTemp"
+                  placeholder="Explica por qué se rechaza esta solicitud..."
+                  required
+                  rows="3"
+                  class="w-full px-3 py-2 border border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                ></textarea>
+                <p class="text-xs text-red-600">* Este campo es obligatorio para rechazar una solicitud</p>
+              </div>
+              
+              <p v-if="hasMinRole(userRole, ROLES.ADMIN)" class="text-xs text-green-600 italic">✓ Sin restricciones (Admin)</p>
+              <p v-else class="text-xs text-gray-500 italic">Solo se muestran transiciones válidas</p>
               <button
                 class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0a2850] transition-colors"
                 @click="guardarCambios"
@@ -273,7 +441,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, Download, FileText, Save } from 'lucide-vue-next'
+import { ArrowLeft, Download, FileText, Save, Edit, X, Upload, File } from 'lucide-vue-next'
 import solicitudesService from '../../services/solicitudesService'
 import { useAuthStore } from '../../stores/authStore'
 import { ROLES, hasMinRole } from '../../constants/roles'
@@ -287,6 +455,25 @@ const authStore = useAuthStore()
 const userRole = computed(() => authStore.user?.rol || 0)
 // Admin (2), SuperAdmin (3) y Agente (4) pueden gestionar solicitudes
 const canManage = computed(() => hasMinRole(userRole.value, ROLES.ADMIN) || userRole.value === ROLES.AGENTE)
+
+// Computed para verificar si el usuario puede editar esta solicitud
+const puedeEditar = computed(() => {
+  if (!solicitud.value) return false
+  
+  const solicitudData = solicitud.value as any
+  const userId = authStore.user?.id
+  
+  // El usuario debe ser el creador
+  const esCreador = solicitudData.solicitanteId === userId
+  
+  // Debe estar en estado "Nueva"
+  const esNueva = solicitudData.estado === 'Nueva'
+  
+  // No debe tener agente asignado
+  const sinAgente = !solicitudData.gestorAsignadoId
+  
+  return esCreador && esNueva && sinAgente
+})
 
 // Interface para la solicitud (debe coincidir con el DTO del backend)
 interface SolicitudDisplay {
@@ -328,6 +515,16 @@ interface SolicitudDisplay {
     tamanoBytes: number
     fechaSubida: string
   }>
+  archivo?: {
+    nombreArchivo: string
+    contentType: string
+    tamanoBytes: number | null
+  }
+  // Campos del backend plano (strings)
+  solicitanteDepartamento?: string
+  solicitanteRolNombre?: string
+  solicitanteCodigoEmpleado?: string
+  motivoRechazo?: string | null
   comentarios?: Array<{
     id: number
     contenido: string
@@ -338,6 +535,9 @@ interface SolicitudDisplay {
       nombre: string
       email: string
     }
+    // Campos adicionales del backend
+    usuarioRolNombre?: string
+    usuarioDepartamento?: string
   }>
 }
 
@@ -348,6 +548,17 @@ const error = ref<string | null>(null)
 const downloadingPDF = ref<boolean>(false)
 const downloadingPNG = ref<boolean>(false)
 const nuevoComentario = ref<string>('')
+const motivoRechazoTemp = ref<string>('')
+
+// Estados para edición
+const modoEdicion = ref<boolean>(false)
+const asuntoEdit = ref<string>('')
+const descripcionEdit = ref<string>('')
+const prioridadEdit = ref<number>(1)
+const archivoEdit = ref<File | null>(null)
+const nombreArchivoEdit = ref<string>('')
+const eliminarArchivo = ref<boolean>(false)
+const guardandoEdicion = ref<boolean>(false)
 
 // Computed properties para acceder a los datos planos del backend
 const solicitudData = computed(() => solicitud.value as any)
@@ -412,6 +623,31 @@ const cargarSolicitud = async () => {
 // Acciones para SuperAdmin
 const estadoTemp = ref<string | undefined>(undefined)
 
+// Computed: Estados disponibles según el estado actual y rol del usuario
+const estadosDisponibles = computed(() => {
+  const estadoActual = estadoTexto.value
+  const rol = userRole.value
+  
+  // ADMIN y SUPER_ADMIN pueden cambiar a cualquier estado sin restricciones
+  const todosLosEstados = ['Nueva', 'Asignado', 'Resuelta', 'Cerrada', 'Cancelada', 'Rechazada']
+  
+  if (hasMinRole(rol, ROLES.ADMIN)) {
+    return todosLosEstados
+  }
+  
+  // AGENTE sigue reglas de transición
+  const transiciones: Record<string, string[]> = {
+    'Nueva': ['Nueva', 'Asignado', 'Cancelada', 'Rechazada'],
+    'Asignado': ['Asignado', 'Resuelta', 'Cancelada', 'Rechazada'],
+    'Resuelta': ['Resuelta', 'Cerrada', 'Rechazada'],
+    'Cerrada': ['Cerrada'], // Estado final - no se puede cambiar
+    'Cancelada': ['Cancelada', 'Rechazada'], // Puede cambiar entre estados cerrados
+    'Rechazada': ['Rechazada', 'Cancelada'], // Puede cambiar entre estados cerrados
+  }
+  
+  return transiciones[estadoActual] || todosLosEstados
+})
+
 const actualizarEstado = (event: Event) => {
   const target = event.target as HTMLSelectElement
   estadoTemp.value = target.value
@@ -438,6 +674,7 @@ const normalizarEstado = (estado: string): string => {
   if (estado === '5' || estado === 'Rechazado') return 'Rechazada'
   if (estado === '6' || estado === 'Cancelado') return 'Cancelada'
   if (estado === 'Resuelta' || estado === 'Resuelto') return 'Resuelta'
+  if (estado === 'EnProceso') return 'Asignado' // Backend usa EnProceso, frontend usa Asignado
   return estado
 }
 
@@ -450,14 +687,27 @@ const guardarCambios = async () => {
   if (estadoTemp.value === estadoTexto.value) {
     console.log('[RequestDetail] El estado no ha cambiado')
     estadoTemp.value = undefined
+    motivoRechazoTemp.value = ''
+    return
+  }
+
+  // Validar que se haya proporcionado motivo si el estado es Rechazada
+  if (estadoTemp.value === 'Rechazada' && !motivoRechazoTemp.value.trim()) {
+    alert('❌ Debes proporcionar un motivo para rechazar la solicitud')
     return
   }
 
   try {
     const nuevoEstadoNumero = estadoANumero(estadoTemp.value)
-    const payload = {
+    const payload: any = {
       solicitudId: solicitud.value.id,
       nuevoEstado: nuevoEstadoNumero
+    }
+    
+    // Agregar motivo de rechazo si aplica
+    if (estadoTemp.value === 'Rechazada') {
+      payload.motivoRechazo = motivoRechazoTemp.value.trim()
+      console.log('[RequestDetail] 📝 Incluyendo motivo de rechazo:', payload.motivoRechazo)
     }
     
     console.log('[RequestDetail] 🚀 Enviando cambio de estado:', payload)
@@ -472,15 +722,23 @@ const guardarCambios = async () => {
     console.log('[RequestDetail] ✅ Respuesta del backend:', response.data)
     console.log('[RequestDetail] 📊 Estado devuelto por backend:', response.data?.estado)
     
-    console.log('[RequestDetail] ✅ Respuesta del backend:', response.data)
-    
     // Actualizar localmente después de éxito
     const data = solicitud.value as any
     data.estado = estadoTemp.value
+    
+    // Si fue rechazada, actualizar también el motivo
+    if (estadoTemp.value === 'Rechazada') {
+      data.motivoRechazo = motivoRechazoTemp.value.trim()
+    }
+    
     estadoTemp.value = undefined
+    motivoRechazoTemp.value = ''
     
     console.log('[RequestDetail] ✅ Estado actualizado exitosamente')
     alert('Estado actualizado correctamente')
+    
+    // Recargar la solicitud para obtener datos actualizados
+    await cargarSolicitud()
   } catch (err: any) {
     console.error('[RequestDetail] ❌ Error al guardar cambios:')
     console.error('  - Status:', err.response?.status)
@@ -690,19 +948,20 @@ const agregarComentario = async () => {
 }
 
 // Función para descargar archivo adjunto
-const descargarArchivo = async (archivoId: number) => {
-  if (!solicitud.value) return
+const descargarArchivo = async () => {
+  if (!solicitud.value || !solicitud.value.archivo) return
 
   try {
-    console.log('[RequestDetail] Descargando archivo', archivoId)
+    const archivo = solicitud.value.archivo
+    console.log('[RequestDetail] Descargando archivo:', archivo.nombreArchivo)
     
-    const response = await api.get(`/solicitudes/${solicitud.value.id}/archivos/${archivoId}/download`, {
+    const response = await api.get(`/solicitudes/${solicitud.value.id}/archivo/download`, {
       responseType: 'blob'
     })
     
-    // Obtener nombre del archivo del header Content-Disposition o usar default
+    // Usar el nombre del archivo del DTO o del header Content-Disposition
     const contentDisposition = response.headers['content-disposition']
-    let filename = `archivo-${archivoId}`
+    let filename = archivo.nombreArchivo
     
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
@@ -716,6 +975,109 @@ const descargarArchivo = async (archivoId: number) => {
   } catch (err: any) {
     console.error('[RequestDetail] Error al descargar archivo:', err.message)
     alert('Error al descargar archivo: ' + (err.response?.data?.message || err.message))
+  }
+}
+
+// Funciones de edición
+const iniciarEdicion = () => {
+  if (!solicitud.value) return
+  
+  const solicitudData = solicitud.value as any
+  
+  // Cargar valores actuales en los campos de edición
+  asuntoEdit.value = solicitudData.asunto || ''
+  descripcionEdit.value = solicitudData.descripcion || ''
+  prioridadEdit.value = solicitudData.prioridad ? 
+    (solicitudData.prioridad === 'Baja' ? 1 : solicitudData.prioridad === 'Media' ? 2 : 3) : 1
+  
+  modoEdicion.value = true
+  console.log('[RequestDetail] Modo edición activado')
+}
+
+const cancelarEdicion = () => {
+  modoEdicion.value = false
+  asuntoEdit.value = ''
+  descripcionEdit.value = ''
+  prioridadEdit.value = 1
+  archivoEdit.value = null
+  nombreArchivoEdit.value = ''
+  eliminarArchivo.value = false
+  console.log('[RequestDetail] Edición cancelada')
+}
+
+const handleFileChangeEdit = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) {
+    archivoEdit.value = file
+    nombreArchivoEdit.value = file.name
+    eliminarArchivo.value = false  // Si sube nuevo archivo, no eliminar el anterior
+    console.log('[RequestDetail] Archivo seleccionado para edición:', file.name)
+  }
+}
+
+const guardarEdicion = async () => {
+  if (!solicitud.value) return
+  
+  // Validaciones
+  if (!asuntoEdit.value.trim()) {
+    alert('El asunto es obligatorio')
+    return
+  }
+  
+  if (!descripcionEdit.value.trim()) {
+    alert('La descripción es obligatoria')
+    return
+  }
+  
+  guardandoEdicion.value = true
+  
+  try {
+    // Construir FormData
+    const formData = new FormData()
+    formData.append('Asunto', asuntoEdit.value.trim())
+    formData.append('Descripcion', descripcionEdit.value.trim())
+    formData.append('Prioridad', prioridadEdit.value.toString())
+    formData.append('EliminarArchivo', eliminarArchivo.value.toString())
+    
+    // Agregar archivo si se seleccionó uno nuevo
+    if (archivoEdit.value) {
+      formData.append('Archivo', archivoEdit.value)
+      console.log('[RequestDetail] Incluyendo nuevo archivo:', archivoEdit.value.name)
+    }
+    
+    console.log('[RequestDetail] Guardando edición de solicitud', solicitud.value.id)
+    
+    // Llamar al endpoint PUT /api/solicitudes/{id}
+    const response = await api.put(`/solicitudes/${solicitud.value.id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    
+    console.log('[RequestDetail] ✅ Solicitud editada:', response.data)
+    
+    // Salir del modo edición
+    cancelarEdicion()
+    
+    // Recargar la solicitud
+    await cargarSolicitud()
+    
+    alert('✅ Solicitud actualizada correctamente')
+  } catch (err: any) {
+    console.error('[RequestDetail] Error al guardar edición:', err)
+    
+    let errorMsg = 'Error al actualizar la solicitud'
+    
+    if (err.response?.status === 403) {
+      errorMsg = err.response.data?.message || 'No tienes permiso para editar esta solicitud'
+    } else if (err.response?.status === 400) {
+      errorMsg = err.response.data?.message || 'No puedes editar esta solicitud en su estado actual'
+    } else if (err.response?.data?.message) {
+      errorMsg = err.response.data.message
+    }
+    
+    alert('❌ ' + errorMsg)
+  } finally {
+    guardandoEdicion.value = false
   }
 }
 
