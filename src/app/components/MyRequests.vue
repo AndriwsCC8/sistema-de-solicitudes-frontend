@@ -234,8 +234,13 @@ const filteredRequests = computed(() => {
     
     const matchesSearch = asunto.includes(searchValue) || numeroSolicitud.includes(searchValue)
     
+    // Normalizar estado: EnProceso → Asignado
+    let estadoRequest = String(request.estado || '')
+    if (estadoRequest === 'EnProceso') {
+      estadoRequest = 'Asignado'
+    }
+    
     // Filtro por estado (comparar strings)
-    const estadoRequest = String(request.estado || '')
     const matchesStatus = statusFilter.value === 'all' || estadoRequest === statusFilter.value
     
     // Filtro por prioridad (comparar strings)
@@ -256,15 +261,19 @@ const getPriorityColor = (priority: string): string => {
 }
 
 const getStatusColor = (status: string): string => {
+  // Normalizar EnProceso a Asignado
+  const estadoNormalizado = status === 'EnProceso' ? 'Asignado' : status
+  
   const colores: Record<string, string> = {
     'Nueva': 'bg-blue-100 text-blue-800',
     'Asignado': 'bg-purple-100 text-purple-800',
+    'EnProceso': 'bg-purple-100 text-purple-800', // Por si acaso
     'Resuelta': 'bg-green-100 text-green-800',
-    'Cerrada': 'bg-gray-200 text-gray-800',
+    'Cerrada': 'bg-gray-100 text-gray-800',
     'Cancelada': 'bg-red-100 text-red-800',
     'Rechazada': 'bg-orange-100 text-orange-800'
   }
-  return colores[status] || 'bg-gray-100 text-gray-800'
+  return colores[estadoNormalizado] || 'bg-gray-100 text-gray-700'
 }
 
 const getPriorityLabel = (priority: string): string => {
@@ -272,6 +281,10 @@ const getPriorityLabel = (priority: string): string => {
 }
 
 const getStatusLabel = (status: string): string => {
+  // Normalizar EnProceso a Asignado para display
+  if (status === 'EnProceso') {
+    return 'Asignado'
+  }
   return status || 'Sin estado'
 }
 

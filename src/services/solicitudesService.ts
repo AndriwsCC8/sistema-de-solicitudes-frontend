@@ -46,22 +46,27 @@ const solicitudesService = {
    * Crear una nueva solicitud
    * POST /api/solicitudes
    */
-  async crearSolicitud(data: CrearSolicitudData): Promise<Solicitud> {
+  async crearSolicitud(data: CrearSolicitudData | FormData): Promise<Solicitud> {
     try {
       console.log('📤 [solicitudesService] Creando solicitud...');
-      console.log('📝 [solicitudesService] Datos recibidos:', data);
       
-      // Payload FINAL que se enviará al backend (según DTO del backend)
-      const payload = {
-        TipoSolicitudId: data.TipoSolicitudId,
-        Asunto: data.Asunto,
-        Descripcion: data.Descripcion,
-        Prioridad: data.Prioridad
-      };
+      // Determinar si es FormData o objeto regular
+      const isFormData = data instanceof FormData
       
-      console.log('🚨 [solicitudesService] Payload FINAL enviado al backend:', JSON.stringify(payload, null, 2));
+      if (isFormData) {
+        console.log('📎 [solicitudesService] Enviando con FormData (incluye archivo)');
+        // Loggear el contenido del FormData
+        for (const pair of (data as FormData).entries()) {
+          console.log(`  ${pair[0]}:`, pair[1] instanceof File ? `File(${pair[1].name})` : pair[1]);
+        }
+      } else {
+        console.log('📝 [solicitudesService] Datos recibidos:', data);
+      }
       
-      const response = await api.post<Solicitud>('/solicitudes', payload);
+      const response = await api.post<Solicitud>('/solicitudes', data, {
+        headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+      });
+      
       console.log('✅ [solicitudesService] Solicitud creada:', response.data);
       return response.data;
     } catch (error: any) {
@@ -72,9 +77,7 @@ const solicitudesService = {
         errorData: error.response?.data,
         errorDetails: JSON.stringify(error.response?.data, null, 2),
         url: error.config?.url,
-        method: error.config?.method,
-        sentData: error.config?.data,
-        headers: error.config?.headers
+        method: error.config?.method
       });
       
       // Loggear TODA la respuesta del error

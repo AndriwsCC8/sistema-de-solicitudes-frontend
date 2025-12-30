@@ -124,7 +124,7 @@
               <span class="text-sm">{{ fileName }}</span>
               <button
                 type="button"
-                @click="fileName = ''"
+                @click="fileName = ''; selectedFile = null"
                 class="ml-2 text-blue-700 hover:text-blue-900"
               >
                 <X class="w-4 h-4" />
@@ -178,6 +178,7 @@ const subject = ref('')
 const description = ref('')
 const priority = ref<number | ''>('')
 const fileName = ref('')
+const selectedFile = ref<File | null>(null)
 
 // Estados
 const loading = ref(false)
@@ -188,6 +189,8 @@ const handleFileChange = (e: Event) => {
   const file = target.files?.[0]
   if (file) {
     fileName.value = file.name
+    selectedFile.value = file
+    console.log('[NewRequest] Archivo seleccionado:', file.name, file.type, file.size, 'bytes')
   }
 }
 
@@ -223,18 +226,23 @@ const handleSave = async () => {
       return
     }
     
-    // Construir el payload con solo los campos requeridos por el backend
-    const payload = {
-      TipoSolicitudId: requestType.value as number,
-      Asunto: subject.value.trim(),
-      Descripcion: description.value.trim(),
-      Prioridad: priority.value as number
+    // Construir FormData para enviar archivo y datos
+    const formData = new FormData()
+    formData.append('TipoSolicitudId', (requestType.value as number).toString())
+    formData.append('Asunto', subject.value.trim())
+    formData.append('Descripcion', description.value.trim())
+    formData.append('Prioridad', (priority.value as number).toString())
+    
+    // Agregar archivo si existe
+    if (selectedFile.value) {
+      formData.append('Archivo', selectedFile.value)
+      console.log('[NewRequest] 📎 Archivo incluido:', selectedFile.value.name)
     }
     
-    console.log('[NewRequest] Enviando solicitud:', payload)
+    console.log('[NewRequest] Enviando solicitud con FormData')
     
     // Crear la solicitud
-    const nuevaSolicitud = await solicitudesService.crearSolicitud(payload)
+    const nuevaSolicitud = await solicitudesService.crearSolicitud(formData)
     
     console.log('[NewRequest] Solicitud creada exitosamente:', nuevaSolicitud)
     
