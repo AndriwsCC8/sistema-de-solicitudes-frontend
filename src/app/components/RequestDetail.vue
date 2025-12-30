@@ -191,10 +191,10 @@
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Comentarios y Cronología</h3>
             
-            <!-- Comentarios existentes -->
-            <div v-if="solicitud.comentarios && solicitud.comentarios.length > 0" class="space-y-4 mb-6">
+            <!-- Comentarios existentes (ordenados cronológicamente) -->
+            <div v-if="comentariosOrdenados.length > 0" class="space-y-4 mb-6">
               <div 
-                v-for="comentario in solicitud.comentarios" 
+                v-for="comentario in comentariosOrdenados" 
                 :key="comentario.id"
                 class="border-l-4 border-blue-500 pl-4 py-2"
               >
@@ -220,11 +220,11 @@
             <!-- Sin comentarios -->
             <div v-else class="text-center py-8 text-gray-500">
               <p>No hay comentarios aún</p>
-              <p class="text-sm mt-1">Sé el primero en comentar esta solicitud</p>
+              <p v-if="puedeComentarYCambiarEstado" class="text-sm mt-1">Sé el primero en comentar esta solicitud</p>
             </div>
             
-            <!-- Agregar comentario -->
-            <div class="mt-6 border-t pt-6">
+            <!-- Agregar comentario (solo Gestor/Admin) -->
+            <div v-if="puedeComentarYCambiarEstado" class="mt-6 border-t pt-6">
               <textarea
                 v-model="nuevoComentario"
                 placeholder="Escribe tu comentario aquí..."
@@ -238,6 +238,13 @@
               >
                 Agregar Comentario
               </button>
+            </div>
+            
+            <!-- Mensaje para usuario solicitante -->
+            <div v-else class="mt-6 border-t pt-6">
+              <p class="text-sm text-gray-500 italic text-center">
+                Solo los gestores y administradores pueden agregar comentarios
+              </p>
             </div>
           </div>
           
@@ -365,8 +372,8 @@
           </div>
           -->
 
-          <!-- Actualizar Estado (Admin y SuperAdmin) -->
-          <div v-if="canManage" class="bg-white rounded-lg shadow-sm p-6">
+          <!-- Actualizar Estado (Gestor/Admin) -->
+          <div v-if="puedeComentarYCambiarEstado" class="bg-white rounded-lg shadow-sm p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Actualizar Estado</h3>
             <div class="space-y-3">
               <select 
@@ -412,6 +419,17 @@
           <div v-if="canManage" class="bg-white rounded-lg shadow-sm p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
             <div class="space-y-2">
+              <!-- Botón Asignar (solo Admin) -->
+              <button
+                v-if="hasMinRole(userRole, ROLES.ADMIN)"
+                class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0a2850] transition-colors"
+                @click="mostrarModalAsignacion"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Asignar a Gestor
+              </button>
               <button
                 class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 @click="exportarPDF"
@@ -435,6 +453,103 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de Asignación -->
+    <div
+      v-if="mostrarModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="cerrarModal"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Asignar Solicitud</h3>
+          <button @click="cerrarModal" class="text-gray-400 hover:text-gray-600">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto px-6 py-4">
+          <!-- Loading -->
+          <div v-if="cargandoGestores" class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
+            <p class="text-gray-500 mt-3 text-sm">Cargando gestores...</p>
+          </div>
+
+          <!-- Error -->
+          <div v-else-if="errorGestores" class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p class="text-red-800 text-sm">{{ errorGestores }}</p>
+          </div>
+
+          <!-- Lista de Gestores -->
+          <div v-else-if="gestoresDisponibles.length > 0" class="space-y-2">
+            <p class="text-sm text-gray-600 mb-3">Selecciona un gestor para asignar esta solicitud:</p>
+            <button
+              v-for="gestor in gestoresDisponibles"
+              :key="gestor.id"
+              @click="seleccionarGestor(gestor.id)"
+              :disabled="asignando"
+              class="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-[#0f3a72] hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div class="flex items-center gap-3">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-[#0f3a72] flex items-center justify-center text-white font-semibold">
+                  {{ getInitials(gestor.nombre) }}
+                </div>
+                <div class="flex-1">
+                  <p class="font-medium text-gray-900">{{ gestor.nombre }}</p>
+                  <p class="text-sm text-gray-600">{{ gestor.email }}</p>
+                  <p v-if="gestor.departamento" class="text-xs text-gray-500 mt-0.5">{{ gestor.departamento }}</p>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <!-- Sin Gestores -->
+          <div v-else class="text-center py-8">
+            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p class="text-gray-500 text-sm">No hay gestores disponibles en esta área</p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-200">
+          <button
+            @click="cerrarModal"
+            :disabled="asignando"
+            class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback de Asignación -->
+    <div
+      v-if="feedbackAsignacion"
+      class="fixed top-4 right-4 z-50 max-w-sm animate-fade-in"
+    >
+      <div
+        :class="[
+          'rounded-lg shadow-lg p-4 border',
+          feedbackAsignacion.tipo === 'success'
+            ? 'bg-green-50 border-green-200'
+            : 'bg-red-50 border-red-200'
+        ]"
+      >
+        <p
+          :class="[
+            'text-sm font-medium',
+            feedbackAsignacion.tipo === 'success' ? 'text-green-800' : 'text-red-800'
+          ]"
+        >
+          {{ feedbackAsignacion.mensaje }}
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -443,6 +558,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, Download, FileText, Save, Edit, X, Upload, File } from 'lucide-vue-next'
 import solicitudesService from '../../services/solicitudesService'
+import catalogosService, { type Gestor } from '../../services/catalogosService'
 import { useAuthStore } from '../../stores/authStore'
 import { ROLES, hasMinRole } from '../../constants/roles'
 import api from '../../services/api'
@@ -501,8 +617,8 @@ interface SolicitudDisplay {
       nombre: string
     }
   }
-  agenteAsignadoId?: number
-  agenteAsignado?: {
+  gestorAsignadoId?: number
+  gestorAsignado?: {
     id: number
     nombre: string
     email: string
@@ -550,6 +666,14 @@ const downloadingPNG = ref<boolean>(false)
 const nuevoComentario = ref<string>('')
 const motivoRechazoTemp = ref<string>('')
 
+// Estados para asignación
+const mostrarModal = ref(false)
+const gestoresDisponibles = ref<Gestor[]>([])
+const cargandoGestores = ref(false)
+const errorGestores = ref<string | null>(null)
+const asignando = ref(false)
+const feedbackAsignacion = ref<{ tipo: 'success' | 'error', mensaje: string } | null>(null)
+
 // Estados para edición
 const modoEdicion = ref<boolean>(false)
 const asuntoEdit = ref<string>('')
@@ -571,6 +695,51 @@ const prioridadTexto = computed(() => solicitudData.value?.prioridad || '-')
 const estadoTexto = computed(() => normalizarEstado(solicitudData.value?.estado || '-'))
 const gestorNombre = computed(() => solicitudData.value?.gestorAsignado)
 const gestorEmail = computed(() => solicitudData.value?.gestorAsignadoEmail || '-')
+
+// Computed para comentarios ordenados cronológicamente (más antiguos primero)
+const comentariosOrdenados = computed(() => {
+  if (!solicitud.value?.comentarios) return []
+  return [...solicitud.value.comentarios].sort((a, b) => {
+    const dateA = new Date(a.fechaCreacion).getTime()
+    const dateB = new Date(b.fechaCreacion).getTime()
+    return dateA - dateB // Orden ascendente (más antiguos primero)
+  })
+})
+
+// Computed para verificar si el usuario puede agregar comentarios
+// Gestor/Admin pueden comentar, Usuario solicitante solo puede ver
+const puedeComentarYCambiarEstado = computed(() => {
+  if (!solicitud.value) return false
+  
+  const rol = userRole.value
+  const userId = authStore.user?.id
+  const solicitudData = solicitud.value as any
+  
+  // Admin y SuperAdmin pueden comentar siempre
+  if (rol === ROLES.ADMIN || rol === ROLES.SUPER_ADMIN) {
+    return true
+  }
+  
+  // Gestor (AGENTE) puede comentar solo si:
+  // 1. La solicitud está asignada a él
+  // 2. Y la solicitud NO está en estado terminal (Cerrada, Rechazada, Cancelada)
+  if (rol === ROLES.AGENTE) {
+    const estaAsignadoAMi = solicitudData.gestorAsignadoId === userId
+    const estadoActivo = !['Cerrada', 'Rechazada', 'Cancelada'].includes(solicitudData.estado)
+    
+    console.log('[RequestDetail] 🔍 Validación comentario Gestor:', {
+      estaAsignadoAMi,
+      estadoActivo,
+      gestorAsignadoId: solicitudData.gestorAsignadoId,
+      userId,
+      estado: solicitudData.estado
+    })
+    
+    return estaAsignadoAMi && estadoActivo
+  }
+  
+  return false
+})
 
 // Helper para obtener nombre de usuario de comentario
 const getNombreUsuarioComentario = (comentario: any): string => {
@@ -599,7 +768,7 @@ const cargarSolicitud = async () => {
     console.log('🔍 [DEBUG] Respuesta completa del backend:', JSON.stringify(data, null, 2))
     console.log('🔍 [DEBUG] usuarioCreador:', data.usuarioCreador)
     console.log('🔍 [DEBUG] tipoSolicitud:', data.tipoSolicitud)
-    console.log('🔍 [DEBUG] agenteAsignado:', data.agenteAsignado)
+    console.log('🔍 [DEBUG] gestorAsignado:', data.gestorAsignado)
     
     // Usar datos reales del backend sin fallbacks falsos
     solicitud.value = data as SolicitudDisplay
@@ -721,6 +890,21 @@ const guardarCambios = async () => {
     
     console.log('[RequestDetail] ✅ Respuesta del backend:', response.data)
     console.log('[RequestDetail] 📊 Estado devuelto por backend:', response.data?.estado)
+    
+    // Si se cambia a "Nueva", desasignar el gestor
+    if (estadoTemp.value === 'Nueva') {
+      const solicitudData = solicitud.value as any
+      if (solicitudData.gestorAsignadoId) {
+        console.log('[RequestDetail] 🔄 Desasignando gestor porque el estado cambió a "Nueva"...')
+        try {
+          await solicitudesService.desasignarSolicitud(solicitud.value.id)
+          console.log('[RequestDetail] ✅ Gestor desasignado exitosamente')
+        } catch (desasignarErr: any) {
+          console.error('[RequestDetail] ⚠️ Error al desasignar gestor:', desasignarErr)
+          // No bloqueamos el flujo si falla la desasignación
+        }
+      }
+    }
     
     // Actualizar localmente después de éxito
     const data = solicitud.value as any
@@ -923,6 +1107,11 @@ const agregarComentario = async () => {
 
   try {
     console.log('[RequestDetail] Agregando comentario a solicitud', solicitud.value.id)
+    console.log('[RequestDetail] 👤 Usuario actual:', authStore.user)
+    console.log('[RequestDetail] 🔑 Rol del usuario:', authStore.userRole)
+    console.log('[RequestDetail] 📋 Solicitud areaId:', (solicitud.value as any).areaId)
+    console.log('[RequestDetail] 📋 Usuario areaId:', authStore.user?.areaId)
+    console.log('[RequestDetail] ✅ Puede comentar (frontend):', puedeComentarYCambiarEstado.value)
     
     const payload = {
       contenido: nuevoComentario.value
@@ -942,8 +1131,16 @@ const agregarComentario = async () => {
   } catch (err: any) {
     console.error('[RequestDetail] ❌ Error al agregar comentario:', err.message)
     console.error('  - Status:', err.response?.status)
+    console.error('  - Status Text:', err.response?.statusText)
     console.error('  - Data:', err.response?.data)
-    alert('Error al agregar comentario: ' + (err.response?.data?.message || err.message))
+    console.error('  - Message del backend:', err.response?.data?.message)
+    console.error('  - Errores:', err.response?.data?.errors)
+    
+    const mensajeError = err.response?.data?.message || 
+                        err.response?.data?.title ||
+                        err.message || 
+                        'Error al agregar comentario'
+    alert('❌ ' + mensajeError)
   }
 }
 
@@ -1078,6 +1275,81 @@ const guardarEdicion = async () => {
     alert('❌ ' + errorMsg)
   } finally {
     guardandoEdicion.value = false
+  }
+}
+
+// Funciones para asignación
+const mostrarModalAsignacion = async () => {
+  const solicitudData = solicitud.value as any
+  const areaId = solicitudData?.areaId
+  
+  if (!areaId) {
+    feedbackAsignacion.value = {
+      tipo: 'error',
+      mensaje: 'No se puede determinar el área de esta solicitud'
+    }
+    setTimeout(() => { feedbackAsignacion.value = null }, 3000)
+    return
+  }
+
+  mostrarModal.value = true
+  cargandoGestores.value = true
+  errorGestores.value = null
+  gestoresDisponibles.value = []
+
+  try {
+    console.log('[RequestDetail] Cargando gestores del área:', areaId)
+    console.log('[RequestDetail] Solicitud completa:', solicitud.value)
+    const gestores = await catalogosService.obtenerGestoresPorArea(areaId)
+    gestoresDisponibles.value = gestores
+    console.log('[RequestDetail] Gestores cargados:', gestores.length)
+  } catch (err: any) {
+    console.error('[RequestDetail] Error al cargar gestores:', err)
+    errorGestores.value = err.response?.data?.message || err.message || 'Error al cargar gestores'
+  } finally {
+    cargandoGestores.value = false
+  }
+}
+
+const cerrarModal = () => {
+  if (asignando.value) return
+  mostrarModal.value = false
+  gestoresDisponibles.value = []
+  errorGestores.value = null
+}
+
+const seleccionarGestor = async (gestorId: number) => {
+  if (!solicitud.value?.id) return
+
+  asignando.value = true
+  
+  try {
+    console.log('[RequestDetail] Asignando solicitud a gestor:', gestorId)
+    await solicitudesService.asignarSolicitud(solicitud.value.id, gestorId)
+    
+    feedbackAsignacion.value = {
+      tipo: 'success',
+      mensaje: '✓ Solicitud asignada exitosamente'
+    }
+    
+    mostrarModal.value = false
+    await cargarSolicitud()
+    
+    setTimeout(() => {
+      feedbackAsignacion.value = null
+    }, 3000)
+  } catch (err: any) {
+    console.error('[RequestDetail] Error al asignar solicitud:', err)
+    feedbackAsignacion.value = {
+      tipo: 'error',
+      mensaje: err.response?.data?.message || err.message || 'Error al asignar la solicitud'
+    }
+    
+    setTimeout(() => {
+      feedbackAsignacion.value = null
+    }, 5000)
+  } finally {
+    asignando.value = false
   }
 }
 

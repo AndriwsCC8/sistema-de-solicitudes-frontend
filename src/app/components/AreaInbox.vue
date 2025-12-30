@@ -6,328 +6,575 @@
       <p class="text-gray-600 mt-1">Gestiona las solicitudes asignadas a tu área</p>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <p class="text-sm text-gray-600 mb-1">Pendientes</p>
-        <p class="text-3xl font-bold text-orange-600">{{ pendingCount }}</p>
-      </div>
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <p class="text-sm text-gray-600 mb-1">En Progreso</p>
-        <p class="text-3xl font-bold text-blue-600">{{ inProgressCount }}</p>
-      </div>
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <p class="text-sm text-gray-600 mb-1">Resueltas Hoy</p>
-        <p class="text-3xl font-bold text-green-600">{{ resolvedTodayCount }}</p>
-      </div>
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <p class="text-sm text-gray-600 mb-1">Alta Prioridad</p>
-        <p class="text-3xl font-bold text-red-600">{{ highPriorityCount }}</p>
-      </div>
+    <!-- Loading State -->
+    <div v-if="loading" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
+      <p class="text-gray-500 mt-3">Cargando solicitudes...</p>
     </div>
 
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-      <div class="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
-        <!-- Search -->
-        <div class="relative flex-1 max-w-md">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            v-model="searchTerm"
-            type="text"
-            placeholder="Buscar por número o asunto..."
-            class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
-          />
-        </div>
-
-        <!-- Filters -->
-        <div class="flex gap-3">
-          <select
-            v-model="statusFilter"
-            class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="open">Abierto</option>
-            <option value="in-progress">En progreso</option>
-            <option value="resolved">Resuelto</option>
-          </select>
-
-          <select
-            v-model="priorityFilter"
-            class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
-          >
-            <option value="all">Todas las prioridades</option>
-            <option value="high">Alta</option>
-            <option value="medium">Media</option>
-            <option value="low">Baja</option>
-          </select>
-
-          <select
-            v-model="assignedFilter"
-            class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
-          >
-            <option value="all">Todos</option>
-            <option value="assigned">Asignadas a mí</option>
-            <option value="unassigned">Sin asignar</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <!-- Requests List -->
-    <div class="space-y-4">
-      <div
-        v-for="request in filteredRequests"
-        :key="request.id"
-        class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+    <!-- Error State -->
+    <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+      <p class="text-red-800">{{ error }}</p>
+      <button
+        @click="cargarSolicitudes"
+        class="mt-2 text-red-600 hover:text-red-800 text-sm font-medium"
       >
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <div class="flex items-center gap-3 mb-2">
-              <span class="text-sm font-medium text-gray-500">{{ request.number }}</span>
-              <span
-                :class="[
-                  'px-2 py-1 text-xs font-medium rounded-full border',
-                  getPriorityColor(request.priority)
-                ]"
-              >
-                {{ getPriorityLabel(request.priority) }}
-              </span>
-              <span
-                :class="[
-                  'px-2 py-1 text-xs font-medium rounded-full',
-                  getStatusColor(request.status)
-                ]"
-              >
-                {{ getStatusLabel(request.status) }}
-              </span>
-              <span v-if="request.assignedTo" class="text-xs text-gray-500">
-                👤 {{ request.assignedTo }}
-              </span>
-              <span v-else class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
-                Sin asignar
-              </span>
-            </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-1">{{ request.subject }}</h3>
-            <p class="text-sm text-gray-600 mb-2">{{ request.description }}</p>
-            <div class="flex items-center gap-4 text-sm text-gray-500">
-              <span>📅 {{ formatDate(request.date) }}</span>
-              <span>👤 {{ request.requester }}</span>
-              <span v-if="request.dueDate" :class="isDueSoon(request.dueDate) ? 'text-red-600 font-medium' : ''">
-                ⏰ Vence: {{ formatDate(request.dueDate) }}
-              </span>
-            </div>
+        Reintentar
+      </button>
+    </div>
+
+    <!-- Feedback Message -->
+    <div
+      v-if="feedback"
+      :class="[
+        'rounded-lg p-4 mb-6',
+        feedback.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+      ]"
+    >
+      <p :class="feedback.type === 'success' ? 'text-green-800' : 'text-red-800'">
+        {{ feedback.message }}
+      </p>
+    </div>
+
+    <!-- Content -->
+    <div v-else>
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <p class="text-sm text-gray-600 mb-1">Nuevas</p>
+          <p class="text-3xl font-bold text-blue-600">{{ nuevasCount }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <p class="text-sm text-gray-600 mb-1">Asignadas</p>
+          <p class="text-3xl font-bold text-purple-600">{{ asignadasCount }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <p class="text-sm text-gray-600 mb-1">Resueltas</p>
+          <p class="text-3xl font-bold text-green-600">{{ resueltasCount }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-6">
+          <p class="text-sm text-gray-600 mb-1">Alta Prioridad</p>
+          <p class="text-3xl font-bold text-red-600">{{ altaPrioridadCount }}</p>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div class="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
+          <!-- Search -->
+          <div class="relative flex-1 max-w-md">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              v-model="searchTerm"
+              type="text"
+              placeholder="Buscar por código o asunto..."
+              class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            />
           </div>
-          <div class="flex flex-col gap-2 ml-4">
-            <button
-              @click="router.push(`/dashboard/request-detail/${request.id}`)"
-              class="inline-flex items-center gap-2 px-4 py-2 text-[#0f3a72] hover:bg-gray-50 rounded-md transition-colors text-sm"
+
+          <!-- Filters -->
+          <div class="flex gap-3">
+            <select
+              v-model="estadoFilter"
+              class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
             >
-              <Eye class="w-4 h-4" />
-              Ver Detalles
-            </button>
-            <button
-              v-if="!request.assignedTo"
-              @click="assignToMe(request.id)"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white hover:bg-[#0d3260] rounded-md transition-colors text-sm"
+              <option value="">Todos los estados</option>
+              <option value="Nueva">Nueva</option>
+              <option value="EnProceso">Asignada / En Proceso</option>
+              <option value="Resuelta">Resuelta</option>
+              <option value="Cerrada">Cerrada</option>
+              <option value="Rechazada">Rechazada</option>
+              <option value="Cancelada">Cancelada</option>
+            </select>
+
+            <select
+              v-model="prioridadFilter"
+              class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
             >
-              <User class="w-4 h-4" />
-              Asignarme
-            </button>
-            <button
-              v-if="request.status === 'open' && request.assignedTo"
-              @click="startWork(request.id)"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors text-sm"
-            >
-              ▶️ Iniciar
-            </button>
-            <button
-              v-if="request.status === 'in-progress'"
-              @click="resolveRequest(request.id)"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-md transition-colors text-sm"
-            >
-              ✓ Resolver
-            </button>
+              <option value="">Todas las prioridades</option>
+              <option value="Alta">Alta</option>
+              <option value="Media">Media</option>
+              <option value="Baja">Baja</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <div v-if="filteredRequests.length === 0" class="text-center py-12 bg-white rounded-lg">
-        <p class="text-gray-500">No se encontraron solicitudes</p>
+      <!-- Requests List -->
+      <div v-if="filteredSolicitudes.length === 0" class="bg-white rounded-lg shadow-sm p-12 text-center">
+        <p class="text-gray-500">No hay solicitudes que coincidan con los filtros</p>
+      </div>
+
+      <div v-else class="space-y-4">
+        <div
+          v-for="solicitud in filteredSolicitudes"
+          :key="solicitud.id"
+          class="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer"
+          @click="$router.push(`/dashboard/request-detail/${solicitud.id}`)"
+        >
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <span class="text-sm font-medium text-gray-500">{{ solicitud.numero }}</span>
+                <span
+                  :class="['px-2 py-1 text-xs font-medium rounded-full border', getPrioridadColor(solicitud.prioridad)]"
+                >
+                  {{ solicitud.prioridad }}
+                </span>
+                <span
+                  :class="['px-2 py-1 text-xs font-medium rounded-full', getEstadoColor(solicitud.estado)]"
+                >
+                  {{ solicitud.estado }}
+                </span>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ solicitud.asunto }}</h3>
+              <div class="flex items-center gap-4 text-sm text-gray-600">
+                <span>Solicitante: {{ solicitud.solicitante }}</span>
+                <span>•</span>
+                <span>Fecha: {{ formatDate(solicitud.fechaCreacion) }}</span>
+                <span v-if="solicitud.gestorAsignado">•</span>
+                <span v-if="solicitud.gestorAsignado">Asignado a: {{ solicitud.gestorAsignado }}</span>
+              </div>
+            </div>
+            <div class="flex gap-2 ml-4">
+              <!-- Botón Asignarme: Gestor, si NO está asignada -->
+              <button
+                v-if="puedeAsignarseSolicitud(solicitud)"
+                @click.stop="asignarmeaSolicitud(solicitud.id)"
+                :disabled="procesandoSolicitud === solicitud.id"
+                class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-[#0f3a72] rounded-md hover:bg-[#0a2a52] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg v-if="procesandoSolicitud === solicitud.id" class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Asignarme</span>
+              </button>
+              
+              <!-- Botón Asignar a Gestor: Admin, si NO está asignada -->
+              <button
+                v-if="puedeAsignarAGestor(solicitud)"
+                @click.stop="abrirModalAsignacion(solicitud)"
+                class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-[#0f3a72] rounded-md hover:bg-[#0a2a52] transition-colors"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span>Asignar</span>
+              </button>
+              
+              <!-- Botón Resolver: quien tiene la solicitud asignada -->
+              <button
+                v-if="puedeResolverSolicitud(solicitud)"
+                @click.stop="resolverSolicitud(solicitud.id)"
+                :disabled="procesandoSolicitud === solicitud.id"
+                class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg v-if="procesandoSolicitud === solicitud.id" class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Resolver</span>
+              </button>
+              
+              <!-- Botón Ver Detalles: siempre visible -->
+              <button
+                @click.stop="verDetalle(solicitud.id)"
+                class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-[#0f3a72] border border-[#0f3a72] rounded-md hover:bg-[#0f3a72] hover:text-white transition-colors"
+              >
+                <Eye class="w-4 h-4" />
+                Ver Detalles
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Asignación -->
+    <div
+      v-if="mostrarModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="cerrarModal"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Asignar Solicitud</h3>
+          <button @click="cerrarModal" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto px-6 py-4">
+          <!-- Loading -->
+          <div v-if="cargandoGestores" class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
+            <p class="text-gray-500 mt-3 text-sm">Cargando gestores...</p>
+          </div>
+
+          <!-- Error -->
+          <div v-else-if="errorGestores" class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p class="text-red-800 text-sm">{{ errorGestores }}</p>
+          </div>
+
+          <!-- Lista de Gestores -->
+          <div v-else-if="gestoresDisponibles.length > 0" class="space-y-2">
+            <p class="text-sm text-gray-600 mb-3">Selecciona un gestor para asignar esta solicitud:</p>
+            <button
+              v-for="gestor in gestoresDisponibles"
+              :key="gestor.id"
+              @click="asignarAGestor(gestor.id)"
+              :disabled="asignando"
+              class="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-[#0f3a72] hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div class="flex items-center gap-3">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-[#0f3a72] flex items-center justify-center text-white font-semibold">
+                  {{ getInitials(gestor.nombre) }}
+                </div>
+                <div class="flex-1">
+                  <p class="font-medium text-gray-900">{{ gestor.nombre }}</p>
+                  <p class="text-sm text-gray-600">{{ gestor.email }}</p>
+                  <p v-if="gestor.departamento" class="text-xs text-gray-500 mt-0.5">{{ gestor.departamento }}</p>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <!-- Sin Gestores -->
+          <div v-else class="text-center py-8">
+            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p class="text-gray-500 text-sm">No hay gestores disponibles en esta área</p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-200">
+          <button
+            @click="cerrarModal"
+            :disabled="asignando"
+            class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancelar
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Eye, User } from 'lucide-vue-next'
-
-interface Request {
-  id: string
-  number: string
-  subject: string
-  description: string
-  priority: 'high' | 'medium' | 'low'
-  status: 'open' | 'in-progress' | 'resolved'
-  date: string
-  dueDate?: string
-  requester: string
-  assignedTo?: string
-}
+import { Search, Eye } from 'lucide-vue-next'
+import solicitudesService from '../../services/solicitudesService'
+import catalogosService, { type Gestor } from '../../services/catalogosService'
+import { useAuthStore } from '../../stores/authStore'
+import { ROLES } from '../../constants/roles'
+import api from '../../services/api'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
+// Estados
+const loading = ref(true)
+const error = ref<string | null>(null)
+const solicitudes = ref<any[]>([])
+const procesandoSolicitud = ref<number | null>(null)
+const feedback = ref<{ type: 'success' | 'error', message: string } | null>(null)
+
+// Estados para modal de asignación
+const mostrarModal = ref(false)
+const solicitudSeleccionada = ref<any>(null)
+const gestoresDisponibles = ref<Gestor[]>([])
+const cargandoGestores = ref(false)
+const errorGestores = ref<string | null>(null)
+const asignando = ref(false)
+
+// Filtros
 const searchTerm = ref('')
-const statusFilter = ref('all')
-const priorityFilter = ref('all')
-const assignedFilter = ref('all')
+const estadoFilter = ref('')
+const prioridadFilter = ref('')
 
-const areaRequests: Request[] = [
-  {
-    id: '1',
-    number: 'REQ-2024-010',
-    subject: 'Error en sistema de nómina',
-    description: 'El sistema no calcula correctamente las horas extras',
-    priority: 'high',
-    status: 'open',
-    date: '2024-12-17',
-    dueDate: '2024-12-18',
-    requester: 'Ana Martínez',
-  },
-  {
-    id: '2',
-    number: 'REQ-2024-011',
-    subject: 'Instalación de software',
-    description: 'Necesito instalación de Adobe Creative Suite',
-    priority: 'medium',
-    status: 'in-progress',
-    date: '2024-12-16',
-    dueDate: '2024-12-20',
-    requester: 'Carlos López',
-    assignedTo: 'Yo',
-  },
-  {
-    id: '3',
-    number: 'REQ-2024-012',
-    subject: 'Recuperación de archivos',
-    description: 'Archivos borrados accidentalmente de carpeta compartida',
-    priority: 'high',
-    status: 'open',
-    date: '2024-12-17',
-    dueDate: '2024-12-17',
-    requester: 'María García',
-  },
-  {
-    id: '4',
-    number: 'REQ-2024-013',
-    subject: 'Solicitud de acceso VPN',
-    description: 'Necesito acceso remoto para trabajar desde casa',
-    priority: 'medium',
-    status: 'open',
-    date: '2024-12-15',
-    requester: 'Juan Pérez',
-    assignedTo: 'Pedro Gómez',
-  },
-  {
-    id: '5',
-    number: 'REQ-2024-014',
-    subject: 'Problema con impresora',
-    description: 'La impresora del piso 3 no imprime en color',
-    priority: 'low',
-    status: 'in-progress',
-    date: '2024-12-14',
-    requester: 'Laura Silva',
-    assignedTo: 'Yo',
-  },
-]
+// Cargar solicitudes
+const cargarSolicitudes = async () => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    console.log('[AreaInbox] Cargando solicitudes del área...')
+    const data = await solicitudesService.obtenerSolicitudesArea()
+    solicitudes.value = data
+    console.log('[AreaInbox] ✅ Solicitudes cargadas:', data.length)
+    
+    // Log de la primera solicitud para verificar estructura
+    if (data.length > 0) {
+      console.log('[AreaInbox] 📋 Ejemplo de solicitud:', data[0])
+      console.log('[AreaInbox] 🔑 Campos clave:', {
+        id: data[0].id,
+        areaId: data[0].areaId,
+        gestorAsignadoId: data[0].gestorAsignadoId,
+        estado: data[0].estado
+      })
+    }
+  } catch (err: any) {
+    console.error('[AreaInbox] Error al cargar solicitudes:', err)
+    error.value = err.response?.data?.message || err.message || 'Error al cargar las solicitudes'
+  } finally {
+    loading.value = false
+  }
+}
 
-const filteredRequests = computed(() => {
-  return areaRequests.filter((request) => {
+// Solicitudes filtradas
+const filteredSolicitudes = computed(() => {
+  return solicitudes.value.filter((solicitud) => {
     const matchesSearch =
-      request.subject.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-      request.number.toLowerCase().includes(searchTerm.value.toLowerCase())
-    const matchesStatus = statusFilter.value === 'all' || request.status === statusFilter.value
-    const matchesPriority = priorityFilter.value === 'all' || request.priority === priorityFilter.value
-    const matchesAssigned = 
-      assignedFilter.value === 'all' ||
-      (assignedFilter.value === 'assigned' && request.assignedTo === 'Yo') ||
-      (assignedFilter.value === 'unassigned' && !request.assignedTo)
-    return matchesSearch && matchesStatus && matchesPriority && matchesAssigned
+      solicitud.asunto?.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+      solicitud.numero?.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+      solicitud.solicitante?.toLowerCase().includes(searchTerm.value.toLowerCase())
+    
+    const matchesEstado = !estadoFilter.value || solicitud.estado === estadoFilter.value
+    const matchesPrioridad = !prioridadFilter.value || solicitud.prioridad === prioridadFilter.value
+    
+    return matchesSearch && matchesEstado && matchesPrioridad
   })
 })
 
-const pendingCount = computed(() => areaRequests.filter(r => r.status === 'open').length)
-const inProgressCount = computed(() => areaRequests.filter(r => r.status === 'in-progress').length)
-const resolvedTodayCount = computed(() => 3) // Simulado
-const highPriorityCount = computed(() => areaRequests.filter(r => r.priority === 'high').length)
+// Contadores
+const nuevasCount = computed(() => solicitudes.value.filter(s => s.estado === 'Nueva').length)
+const asignadasCount = computed(() => solicitudes.value.filter(s => s.estado === 'Asignado' || s.estado === 'EnProceso').length)
+const resueltasCount = computed(() => solicitudes.value.filter(s => s.estado === 'Resuelta').length)
+const altaPrioridadCount = computed(() => solicitudes.value.filter(s => s.prioridad === 'Alta').length)
 
-const getPriorityColor = (priority: string): string => {
-  switch (priority) {
-    case 'high':
-      return 'bg-red-100 text-red-700 border-red-200'
-    case 'medium':
-      return 'bg-yellow-100 text-yellow-700 border-yellow-200'
-    case 'low':
-      return 'bg-green-100 text-green-700 border-green-200'
-    default:
-      return 'bg-gray-100 text-gray-700 border-gray-200'
+// Helpers
+const getPrioridadColor = (prioridad: string): string => {
+  const colores: Record<string, string> = {
+    'Alta': 'border-red-500 text-red-700 bg-red-50',
+    'Media': 'border-yellow-500 text-yellow-700 bg-yellow-50',
+    'Baja': 'border-green-500 text-green-700 bg-green-50'
   }
+  return colores[prioridad] || 'border-gray-500 text-gray-700 bg-gray-50'
 }
 
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case 'open':
-      return 'bg-blue-100 text-blue-700'
-    case 'in-progress':
-      return 'bg-purple-100 text-purple-700'
-    case 'resolved':
-      return 'bg-green-100 text-green-700'
-    default:
-      return 'bg-gray-100 text-gray-700'
+const getEstadoColor = (estado: string): string => {
+  const colores: Record<string, string> = {
+    'Nueva': 'bg-blue-100 text-blue-800',
+    'Asignado': 'bg-purple-100 text-purple-800',
+    'EnProceso': 'bg-purple-100 text-purple-800',
+    'Resuelta': 'bg-green-100 text-green-800',
+    'Cerrada': 'bg-gray-200 text-gray-800',
+    'Cancelada': 'bg-red-100 text-red-800',
+    'Rechazada': 'bg-orange-100 text-orange-800'
   }
-}
-
-const getPriorityLabel = (priority: string): string => {
-  const labels: Record<string, string> = {
-    high: 'Alta',
-    medium: 'Media',
-    low: 'Baja'
-  }
-  return labels[priority] || priority
-}
-
-const getStatusLabel = (status: string): string => {
-  const labels: Record<string, string> = {
-    open: 'Abierto',
-    'in-progress': 'En progreso',
-    resolved: 'Resuelto'
-  }
-  return labels[status] || status
+  return colores[estado] || 'bg-gray-100 text-gray-800'
 }
 
 const formatDate = (dateStr: string): string => {
+  if (!dateStr) return '-'
   const date = new Date(dateStr)
   return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-const isDueSoon = (dueDate: string): boolean => {
-  const due = new Date(dueDate)
-  const now = new Date()
-  const diffHours = (due.getTime() - now.getTime()) / (1000 * 60 * 60)
-  return diffHours < 24
+const verDetalle = (id: number) => {
+  router.push(`/dashboard/request-detail/${id}`)
 }
 
-const assignToMe = (id: string) => {
-  alert(`Solicitud ${id} asignada a ti`)
+// Helper para obtener iniciales
+const getInitials = (nombre: string): string => {
+  if (!nombre) return '?'
+  const words = nombre.trim().split(' ')
+  if (words.length === 1) return words[0].substring(0, 2).toUpperCase()
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase()
 }
 
-const startWork = (id: string) => {
-  alert(`Trabajo iniciado en solicitud ${id}`)
+// PERMISOS Y VALIDACIONES
+
+// Gestor puede asignarse una solicitud si NO está asignada
+const puedeAsignarseSolicitud = (solicitud: any): boolean => {
+  const esGestor = authStore.userRole === ROLES.AGENTE
+  const noAsignada = !solicitud.gestorAsignadoId && solicitud.estado === 'Nueva'
+  return esGestor && noAsignada
 }
 
-const resolveRequest = (id: string) => {
-  alert(`Solicitud ${id} marcada como resuelta`)
+// Admin puede asignar a cualquier gestor si NO está asignada
+const puedeAsignarAGestor = (solicitud: any): boolean => {
+  const esAdmin = authStore.userRole === ROLES.ADMIN || authStore.userRole === ROLES.SUPER_ADMIN
+  const noAsignada = !solicitud.gestorAsignadoId && solicitud.estado === 'Nueva'
+  return esAdmin && noAsignada
 }
+
+// Puede resolver si está asignada a él y el estado es Asignado
+const puedeResolverSolicitud = (solicitud: any): boolean => {
+  const usuarioId = authStore.user?.id
+  const estaAsignadoAMi = solicitud.gestorAsignadoId === usuarioId
+  const estadoPermitido = solicitud.estado === 'Asignado' || solicitud.estado === 'EnProceso'
+  return estaAsignadoAMi && estadoPermitido
+}
+
+// ACCIONES
+
+// Gestor se asigna la solicitud a sí mismo
+const asignarmeaSolicitud = async (id: number) => {
+  procesandoSolicitud.value = id
+  feedback.value = null
+  
+  try {
+    console.log('[AreaInbox] Asignándome solicitud:', id)
+    await solicitudesService.tomarSolicitud(id)
+    
+    feedback.value = {
+      type: 'success',
+      message: '✓ Te has asignado la solicitud exitosamente'
+    }
+    
+    await cargarSolicitudes()
+    
+    setTimeout(() => {
+      feedback.value = null
+    }, 3000)
+  } catch (err: any) {
+    console.error('[AreaInbox] Error al asignarme solicitud:', err)
+    feedback.value = {
+      type: 'error',
+      message: err.response?.data?.message || err.message || 'Error al asignarte la solicitud'
+    }
+    
+    setTimeout(() => {
+      feedback.value = null
+    }, 5000)
+  } finally {
+    procesandoSolicitud.value = null
+  }
+}
+
+// Admin abre modal para asignar a un gestor
+const abrirModalAsignacion = async (solicitud: any) => {
+  solicitudSeleccionada.value = solicitud
+  mostrarModal.value = true
+  cargandoGestores.value = true
+  errorGestores.value = null
+  gestoresDisponibles.value = []
+
+  try {
+    // El backend retorna areaId directamente en la solicitud
+    const areaId = solicitud.areaId || solicitud.tipoSolicitudAreaId
+    
+    if (!areaId) {
+      console.error('[AreaInbox] No se encontró areaId en la solicitud:', solicitud)
+      errorGestores.value = 'No se puede determinar el área de esta solicitud'
+      cargandoGestores.value = false
+      return
+    }
+    
+    console.log('[AreaInbox] Cargando gestores del área:', areaId)
+    console.log('[AreaInbox] Solicitud completa:', solicitud)
+    const gestores = await catalogosService.obtenerGestoresPorArea(areaId)
+    gestoresDisponibles.value = gestores
+    console.log('[AreaInbox] Gestores cargados:', gestores.length)
+  } catch (err: any) {
+    console.error('[AreaInbox] Error al cargar gestores:', err)
+    errorGestores.value = err.response?.data?.message || err.message || 'Error al cargar gestores'
+  } finally {
+    cargandoGestores.value = false
+  }
+}
+
+const cerrarModal = () => {
+  if (asignando.value) return
+  mostrarModal.value = false
+  solicitudSeleccionada.value = null
+  gestoresDisponibles.value = []
+  errorGestores.value = null
+}
+
+const asignarAGestor = async (gestorId: number) => {
+  if (!solicitudSeleccionada.value) return
+
+  asignando.value = true
+  
+  try {
+    console.log('[AreaInbox] Asignando solicitud a gestor:', gestorId)
+    await solicitudesService.asignarSolicitud(solicitudSeleccionada.value.id, gestorId)
+    
+    feedback.value = {
+      type: 'success',
+      message: '✓ Solicitud asignada exitosamente'
+    }
+    
+    mostrarModal.value = false
+    await cargarSolicitudes()
+    
+    setTimeout(() => {
+      feedback.value = null
+    }, 3000)
+  } catch (err: any) {
+    console.error('[AreaInbox] Error al asignar solicitud:', err)
+    feedback.value = {
+      type: 'error',
+      message: err.response?.data?.message || err.message || 'Error al asignar la solicitud'
+    }
+    
+    setTimeout(() => {
+      feedback.value = null
+    }, 5000)
+  } finally {
+    asignando.value = false
+    solicitudSeleccionada.value = null
+  }
+}
+
+// Resolver solicitud (cambiar estado a Resuelta)
+const resolverSolicitud = async (id: number) => {
+  procesandoSolicitud.value = id
+  feedback.value = null
+  
+  try {
+    console.log('[AreaInbox] Resolviendo solicitud:', id)
+    
+    // Cambiar estado a Resuelta (3)
+    await api.put('/solicitudes/cambiar-estado', {
+      solicitudId: id,
+      nuevoEstado: 3 // 3 = Resuelta
+    })
+    
+    feedback.value = {
+      type: 'success',
+      message: '✓ Solicitud marcada como resuelta'
+    }
+    
+    await cargarSolicitudes()
+    
+    setTimeout(() => {
+      feedback.value = null
+    }, 3000)
+  } catch (err: any) {
+    console.error('[AreaInbox] Error al resolver solicitud:', err)
+    feedback.value = {
+      type: 'error',
+      message: err.response?.data?.message || err.message || 'Error al resolver la solicitud'
+    }
+    
+    setTimeout(() => {
+      feedback.value = null
+    }, 5000)
+  } finally {
+    procesandoSolicitud.value = null
+  }
+}
+
+// Cargar al montar
+onMounted(() => {
+  cargarSolicitudes()
+})
 </script>
