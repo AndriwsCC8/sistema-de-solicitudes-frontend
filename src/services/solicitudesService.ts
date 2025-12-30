@@ -4,20 +4,33 @@ import api from './api';
 interface Solicitud {
   id: number;
   numeroSolicitud?: string;
+  numero?: string; // Alias usado por el backend en GET /api/solicitudes/area
   asunto: string;
   descripcion: string;
-  prioridad: number;  // 1=Baja, 2=Media, 3=Alta
-  estado: number;  // 1=Nueva, 2=Asignado, 3=Resuelto, 4=Cerrado, 5=Cancelado
+  prioridad: number | string;  // 1=Baja, 2=Media, 3=Alta O "Baja", "Media", "Alta"
+  estado: number | string;  // 1=Nueva, 2=EnProceso, 3=Resuelta, 4=Cerrada, 5=Rechazada, 6=Cancelada
   fechaCreacion: string;
   fechaActualizacion?: string;
+  fechaCierre?: string;
+  
+  // Usuario creador
   usuarioCreadorId: number;
+  solicitanteId?: number; // Alias
   usuarioCreador?: {
     id: number;
     nombre: string;
     email: string;
   };
+  solicitante?: string; // Nombre del solicitante (campo plano)
+  solicitanteEmail?: string;
+  solicitanteDepartamento?: string;
+  solicitanteRol?: string;
+  solicitanteRolNombre?: string;
+  solicitanteCodigoEmpleado?: string;
+  
+  // Tipo de solicitud y área
   tipoSolicitudId: number;
-  tipoSolicitud?: {
+  tipoSolicitud?: string | {
     id: number;
     nombre: string;
     areaId: number;
@@ -26,12 +39,43 @@ interface Solicitud {
       nombre: string;
     };
   };
-  agenteAsignadoId?: number;
-  agenteAsignado?: {
+  areaId?: number; // ID del área (campo directo del backend)
+  area?: string; // Nombre del área (campo plano)
+  
+  // Gestor asignado (el backend usa "GestorAsignadoId" en mayúsculas pero JSON lo serializa como camelCase)
+  gestorAsignadoId?: number | null;
+  gestorAsignado?: string | {
     id: number;
     nombre: string;
     email: string;
   };
+  gestorAsignadoEmail?: string;
+  
+  // Otros campos
+  motivoRechazo?: string | null;
+  
+  // Archivos
+  archivo?: {
+    nombreArchivo: string;
+    contentType: string;
+    tamanoBytes: number | null;
+  };
+  
+  // Comentarios
+  comentarios?: Array<{
+    id: number;
+    contenido: string;
+    fechaCreacion: string;
+    usuarioId: number;
+    usuario?: {
+      id: number;
+      nombre: string;
+      email: string;
+    };
+    nombreUsuario?: string;
+    usuarioRolNombre?: string;
+    usuarioDepartamento?: string;
+  }>;
 }
 
 interface CrearSolicitudData {
@@ -141,6 +185,27 @@ const solicitudesService = {
   },
 
   /**
+   * Obtener solicitudes del área del usuario autenticado (Agente)
+   * GET /api/solicitudes/area
+   */
+  async obtenerSolicitudesArea(): Promise<Solicitud[]> {
+    try {
+      console.log('📤 [solicitudesService] Obteniendo solicitudes de mi área...');
+      const response = await api.get<Solicitud[]>('/solicitudes/area');
+      console.log('✅ [solicitudesService] Solicitudes del área obtenidas:', response.data.length);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ [solicitudesService] Error al obtener solicitudes del área:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      throw error;
+    }
+  },
+
+  /**
    * Obtener todas las solicitudes (Admin / SuperAdmin)
    * GET /api/solicitudes
    */
@@ -178,6 +243,53 @@ const solicitudesService = {
       console.error('  - Respuesta del backend:', error.response?.data);
       console.error('  - URL llamada:', error.config?.url);
       console.error('  - Headers enviados:', error.config?.headers);
+      throw error;
+    }
+  },
+  /**
+   * Tomar una solicitud (asignarla al usuario actual)
+   * POST /api/solicitudes/{id}/tomar
+   */
+  async tomarSolicitud(id: number): Promise<Solicitud> {
+    try {
+      console.log(`[solicitudesService] 📥 POST /api/solicitudes/${id}/tomar`);
+      const response = await api.post<Solicitud>(`/solicitudes/${id}/tomar`);
+      console.log(`[solicitudesService] ✅ Solicitud ${id} tomada exitosamente`);
+      return response.data;
+    } catch (error: any) {
+      console.error(`[solicitudesService] ❌ Error al tomar solicitud ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Asignar una solicitud a un gestor específico
+   * POST /api/solicitudes/{id}/asignar/{usuarioId}
+   */
+  async asignarSolicitud(solicitudId: number, usuarioId: number): Promise<Solicitud> {
+    try {
+      console.log(`[solicitudesService] 📋 POST /api/solicitudes/${solicitudId}/asignar/${usuarioId}`);
+      const response = await api.post<Solicitud>(`/solicitudes/${solicitudId}/asignar/${usuarioId}`);
+      console.log(`[solicitudesService] ✅ Solicitud ${solicitudId} asignada a usuario ${usuarioId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error(`[solicitudesService] ❌ Error al asignar solicitud:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Desasignar una solicitud (quitar el gestor asignado)
+   * POST /api/solicitudes/{id}/desasignar
+   */
+  async desasignarSolicitud(solicitudId: number): Promise<Solicitud> {
+    try {
+      console.log(`[solicitudesService] 🔄 POST /api/solicitudes/${solicitudId}/desasignar`);
+      const response = await api.post<Solicitud>(`/solicitudes/${solicitudId}/desasignar`);
+      console.log(`[solicitudesService] ✅ Solicitud ${solicitudId} desasignada exitosamente`);
+      return response.data;
+    } catch (error: any) {
+      console.error(`[solicitudesService] ❌ Error al desasignar solicitud:`, error);
       throw error;
     }
   },
