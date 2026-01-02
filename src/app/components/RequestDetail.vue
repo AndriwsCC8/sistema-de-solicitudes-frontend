@@ -728,16 +728,19 @@ const puedeComentarYCambiarEstado = computed(() => {
     const estadoActivo = !['Cerrada', 'Rechazada', 'Cancelada'].includes(solicitudData.estado)
     
     console.log('[RequestDetail] 🔍 Validación comentario Gestor:', {
-      estaAsignadoAMi,
-      estadoActivo,
-      gestorAsignadoId: solicitudData.gestorAsignadoId,
+      rol,
       userId,
-      estado: solicitudData.estado
+      gestorAsignadoId: solicitudData.gestorAsignadoId,
+      estaAsignadoAMi,
+      estado: solicitudData.estado,
+      estadoActivo,
+      solicitudData: solicitudData
     })
     
     return estaAsignadoAMi && estadoActivo
   }
   
+  console.log('[RequestDetail] ❌ Usuario no tiene permisos para comentar. Rol:', rol)
   return false
 })
 

@@ -62,6 +62,7 @@ export const getRoleName = (role: number): string => {
     case ROLES.AGENTE:         // 4
       return 'Agente de Área';
     default:
-      return 'Usuario';
+      console.warn(`[getRoleName] Rol desconocido: ${role}`);
+      return `Desconocido (${role})`;
   }
 };

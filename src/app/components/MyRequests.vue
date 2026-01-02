@@ -45,13 +45,15 @@
             <option value="Baja">Baja</option>
           </select>
 
-          <button
-            @click="router.push('/dashboard/new-request')"
-            class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
+          <select
+            v-model="fechaFilter"
+            class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
           >
-            <Plus class="w-5 h-5" />
-            Nueva Solicitud
-          </button>
+            <option value="all">Todas las Fechas</option>
+            <option value="today">Hoy</option>
+            <option value="week">Esta Semana</option>
+            <option value="month">Este Mes</option>
+          </select>
         </div>
       </div>
     </div>
@@ -144,6 +146,7 @@ const authStore = useAuthStore()
 const searchTerm = ref('')
 const statusFilter = ref('all')
 const priorityFilter = ref('all')
+const fechaFilter = ref('all')
 
 // Estados reactivos
 const solicitudes = ref<RequestDisplay[]>([])
@@ -247,7 +250,34 @@ const filteredRequests = computed(() => {
     const prioridadRequest = String(request.prioridad || '')
     const matchesPriority = priorityFilter.value === 'all' || prioridadRequest === priorityFilter.value
     
-    return matchesSearch && matchesStatus && matchesPriority
+    // Filtro por fechas predefinidas
+    let matchesFecha = true
+    if (fechaFilter.value !== 'all') {
+      const fechaSolicitud = new Date(request.fechaCreacion)
+      const hoy = new Date()
+      hoy.setHours(0, 0, 0, 0)
+      
+      if (fechaFilter.value === 'today') {
+        const solicitudDia = new Date(fechaSolicitud)
+        solicitudDia.setHours(0, 0, 0, 0)
+        matchesFecha = solicitudDia.getTime() === hoy.getTime()
+      } else if (fechaFilter.value === 'week') {
+        const inicioSemana = new Date(hoy)
+        const diaSemana = hoy.getDay()
+        const diff = diaSemana === 0 ? -6 : 1 - diaSemana
+        inicioSemana.setDate(hoy.getDate() + diff)
+        const finSemana = new Date(inicioSemana)
+        finSemana.setDate(inicioSemana.getDate() + 6)
+        finSemana.setHours(23, 59, 59, 999)
+        matchesFecha = fechaSolicitud >= inicioSemana && fechaSolicitud <= finSemana
+      } else if (fechaFilter.value === 'month') {
+        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+        const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59, 999)
+        matchesFecha = fechaSolicitud >= inicioMes && fechaSolicitud <= finMes
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesPriority && matchesFecha
   })
 })
 
