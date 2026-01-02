@@ -39,8 +39,8 @@ interface Solicitud {
       nombre: string;
     };
   };
-  areaId?: number; // ID del área (campo directo del backend)
-  area?: string; // Nombre del área (campo plano)
+  areaId?: number | null; // ID del área (puede ser null para solicitudes sin área)
+  area?: string | null; // Nombre del área (null si no tiene)
   
   // Gestor asignado (el backend usa "GestorAsignadoId" en mayúsculas pero JSON lo serializa como camelCase)
   gestorAsignadoId?: number | null;

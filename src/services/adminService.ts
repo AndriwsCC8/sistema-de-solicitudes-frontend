@@ -63,8 +63,8 @@ export interface TipoSolicitud {
   id: number
   nombre: string
   descripcion?: string
-  areaId: number
-  areaNombre?: string
+  areaId: number | null  // Null para tipo "Otro"
+  areaNombre?: string | null
   activo: boolean
   cantidadSolicitudes?: number
   fechaCreacion?: string
@@ -90,6 +90,23 @@ export interface MetricasGenerales {
   resueltas: number
   tiempoPromedioHoras: number
   variacionMensual?: number
+}
+
+export interface SolicitudSinAsignar {
+  id: number
+  numeroSolicitud: string
+  asunto: string
+  descripcion: string
+  prioridad: number
+  estado: number
+  fechaCreacion: string
+  tipoSolicitudId: number
+  tipoSolicitud: string
+  solicitanteId: number
+  solicitante: string
+  solicitanteEmail: string
+  areaId?: number | null  // Puede ser null para solicitudes sin área asignada
+  area?: string | null    // Nombre del área (null si no tiene)
 }
 
 // ==================== SERVICIO ====================
@@ -169,31 +186,31 @@ const adminService = {
 
   /**
    * Activar/Desactivar un usuario (Solo SuperAdmin)
-   * Si el backend no tiene endpoint /estado, usa PUT para actualizar solo el campo activo
+   * SIMPLIFICADO: Envía SOLO el campo activo para evitar conflictos
    */
   async cambiarEstadoUsuario(id: number, activo: boolean): Promise<Usuario> {
     try {
       console.log('[adminService] 📤 Cambiando estado usuario:', id, '→', activo)
       
-      // Primero obtenemos el usuario actual para preservar sus datos
-      const usuarios = await this.obtenerUsuarios()
-      const usuario = usuarios.find(u => u.id === id)
-      
-      if (!usuario) {
-        throw new Error(`Usuario con id ${id} no encontrado`)
+      // Enviamos SOLO el campo activo (el DTO permite esto)
+      const updatePayload = {
+        activo: activo
       }
       
-      // Actualizamos solo cambiando el campo activo
-      const response = await api.put<Usuario>(`/admin/usuarios/${id}`, {
-        nombre: usuario.nombre,
-        email: usuario.email,
-        rol: usuario.rolId,    // Backend espera 'rol', leemos de 'rolId'
-        areaId: usuario.areaId,
-        activo: activo
-      })
+      console.log('[adminService] 📤 Payload:', JSON.stringify(updatePayload, null, 2))
       
-      console.log('[adminService] ✅ Estado cambiado')
-      return response.data
+      const response = await api.put<Usuario>(`/admin/usuarios/${id}`, updatePayload)
+      
+      console.log('[adminService] ✅ Respuesta del backend:', JSON.stringify(response.data, null, 2))
+      
+      // Normalizar respuesta
+      const usuarioActualizado = {
+        ...response.data,
+        rolId: response.data.rolId || response.data.rol || 1
+      }
+      
+      console.log('[adminService] ✅ Usuario normalizado:', JSON.stringify(usuarioActualizado, null, 2))
+      return usuarioActualizado
     } catch (error: any) {
       console.error('[adminService] ❌ Error al cambiar estado:', error)
       throw error
@@ -344,6 +361,39 @@ const adminService = {
       return response.data
     } catch (error: any) {
       console.error('[adminService] ❌ Error al obtener métricas:', error)
+      throw error
+    }
+  },
+
+  // ==================== SOLICITUDES SIN ASIGNAR ====================
+
+  /**
+   * Obtener solicitudes sin asignar (tipo "Otro")
+   * GET /api/admin/solicitudes/sin-asignar
+   */
+  async obtenerSolicitudesSinAsignar(): Promise<SolicitudSinAsignar[]> {
+    try {
+      console.log('[adminService] 📤 Obteniendo solicitudes sin asignar...')
+      const response = await api.get<SolicitudSinAsignar[]>('/admin/solicitudes/sin-asignar')
+      console.log('[adminService] ✅ Solicitudes sin asignar obtenidas:', response.data.length)
+      return response.data
+    } catch (error: any) {
+      console.error('[adminService] ❌ Error al obtener solicitudes sin asignar:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Asignar una solicitud a un agente (permite asignación flexible para tipo "Otro")
+   * POST /api/solicitudes/asignar-agente
+   */
+  async asignarSolicitudAAgente(solicitudId: number, gestorId: number): Promise<void> {
+    try {
+      console.log('[adminService] 📤 Asignando solicitud', solicitudId, 'a gestor', gestorId)
+      await api.post('/solicitudes/asignar-agente', { solicitudId, gestorId })
+      console.log('[adminService] ✅ Solicitud asignada exitosamente')
+    } catch (error: any) {
+      console.error('[adminService] ❌ Error al asignar solicitud:', error)
       throw error
     }
   }

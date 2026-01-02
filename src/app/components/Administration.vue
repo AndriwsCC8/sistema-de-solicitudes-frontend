@@ -133,6 +133,103 @@
       </div>
     </div>
 
+    <!-- Solicitudes Sin Asignar -->
+    <div v-if="activeTab === 'unassigned'" class="space-y-6">
+      <!-- Feedback Message -->
+      <div
+        v-if="feedback"
+        :class="[
+          'rounded-lg p-4',
+          feedback.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        ]"
+      >
+        <p :class="feedback.type === 'success' ? 'text-green-800' : 'text-red-800'">
+          {{ feedback.message }}
+        </p>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900">Solicitudes Sin Asignar</h2>
+            <p class="text-sm text-gray-600 mt-1">Solicitudes tipo "Otro" que requieren asignación manual</p>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="loading" class="text-center py-12">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
+          <p class="text-gray-500 mt-3">Cargando solicitudes...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="solicitudesSinAsignar.length === 0" class="text-center py-12">
+          <p class="text-gray-500">No hay solicitudes sin asignar</p>
+          <p class="text-sm text-gray-400 mt-2">Las solicitudes tipo "Otro" aparecerán aquí</p>
+        </div>
+
+        <!-- Solicitudes Cards -->
+        <div v-else class="space-y-4">
+          <div
+            v-for="solicitud in solicitudesSinAsignar"
+            :key="solicitud.id"
+            class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-sm font-medium text-gray-500">{{ solicitud.numeroSolicitud }}</span>
+                  <span
+                    :class="[
+                      'px-2 py-1 text-xs font-medium rounded-full',
+                      solicitud.prioridad === 3 ? 'bg-red-100 text-red-700 border border-red-200' :
+                      solicitud.prioridad === 2 ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                      'bg-green-100 text-green-700 border border-green-200'
+                    ]"
+                  >
+                    {{ solicitud.prioridad === 3 ? 'Alta' : solicitud.prioridad === 2 ? 'Media' : 'Baja' }}
+                  </span>
+                  <span
+                    :class="[
+                      'px-2 py-1 text-xs font-medium rounded-full',
+                      'bg-blue-100 text-blue-700'
+                    ]"
+                  >
+                    Nueva
+                  </span>
+                  <span
+                    :class="[
+                      'px-2 py-1 text-xs font-medium rounded',
+                      solicitud.area ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'
+                    ]"
+                  >
+                    {{ solicitud.area || 'Sin área' }}
+                  </span>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-1">{{ solicitud.asunto }}</h3>
+                <p class="text-sm text-gray-600 mb-2">
+                  {{ solicitud.tipoSolicitud }} • {{ new Date(solicitud.fechaCreacion).toLocaleDateString() }}
+                </p>
+                <div class="text-sm text-gray-500">
+                  <span class="font-medium">Solicitante:</span> {{ solicitud.solicitante }}
+                  <span class="text-gray-400 ml-2">{{ solicitud.solicitanteEmail }}</span>
+                </div>
+              </div>
+              <button
+                @click="abrirModalAsignarAgente(solicitud)"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Asignar a Gestor
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Areas Management -->
     <div v-if="activeTab === 'areas'" class="space-y-6">
       <!-- Feedback Message -->
@@ -181,8 +278,8 @@
             <p class="text-sm text-gray-600 mb-4">{{ area.descripcion || 'Sin descripción' }}</p>
             <div class="flex gap-2">
               <button 
+                @click="abrirModalEdicionArea(area)"
                 class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-                disabled
               >
                 Editar
               </button>
@@ -635,6 +732,231 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal: Nuevo Área -->
+    <div v-if="showNewAreaModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showNewAreaModal = false; resetNewAreaForm()">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-6 border-b">
+          <h3 class="text-xl font-semibold text-gray-900">Crear Nueva Área</h3>
+          <button 
+            @click="showNewAreaModal = false"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <!-- Feedback Message dentro del modal -->
+          <div
+            v-if="feedback"
+            :class="[
+              'rounded-lg p-4',
+              feedback.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            ]"
+          >
+            <p :class="feedback.type === 'success' ? 'text-green-800' : 'text-red-800'">
+              {{ feedback.message }}
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del Área *</label>
+            <input 
+              type="text" 
+              v-model="newArea.nombre"
+              placeholder="Ej: Recursos Humanos"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+            <textarea 
+              v-model="newArea.descripcion"
+              rows="3"
+              placeholder="Descripción del área y sus responsabilidades"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            ></textarea>
+          </div>
+
+          <div>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input 
+                type="checkbox" 
+                v-model="newArea.activa"
+                class="w-4 h-4 text-[#0f3a72] focus:ring-[#0f3a72] rounded" 
+              />
+              <span class="text-sm text-gray-700">Área activa</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 p-6 border-t bg-gray-50">
+          <button 
+            @click="showNewAreaModal = false"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            @click="crearArea"
+            :disabled="loading"
+            class="px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span v-if="loading">Creando...</span>
+            <span v-else>Crear Área</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Editar Área -->
+    <div v-if="showEditAreaModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cerrarModalEdicionArea">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-6 border-b">
+          <h3 class="text-xl font-semibold text-gray-900">Editar Área</h3>
+          <button 
+            @click="cerrarModalEdicionArea"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <!-- Feedback Message dentro del modal -->
+          <div
+            v-if="feedback"
+            :class="[
+              'rounded-lg p-4',
+              feedback.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            ]"
+          >
+            <p :class="feedback.type === 'success' ? 'text-green-800' : 'text-red-800'">
+              {{ feedback.message }}
+            </p>
+          </div>
+
+          <div v-if="editingArea">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del Área *</label>
+            <input 
+              type="text" 
+              v-model="editingArea.nombre"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            />
+          </div>
+
+          <div v-if="editingArea">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+            <textarea 
+              v-model="editingArea.descripcion"
+              rows="3"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            ></textarea>
+          </div>
+
+          <div v-if="editingArea">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input 
+                type="checkbox" 
+                v-model="editingArea.activa"
+                class="w-4 h-4 text-[#0f3a72] focus:ring-[#0f3a72] rounded" 
+              />
+              <span class="text-sm text-gray-700">Área activa</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 p-6 border-t bg-gray-50">
+          <button 
+            @click="cerrarModalEdicionArea"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            @click="actualizarArea"
+            :disabled="loading"
+            class="px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span v-if="loading">Guardando...</span>
+            <span v-else>Guardar Cambios</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Asignar Agente -->
+    <div v-if="showAsignarAgenteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cerrarModalAsignarAgente">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-6 border-b">
+          <h3 class="text-xl font-semibold text-gray-900">Asignar Agente</h3>
+          <button 
+            @click="cerrarModalAsignarAgente"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <!-- Feedback Message dentro del modal -->
+          <div
+            v-if="feedback"
+            :class="[
+              'rounded-lg p-4',
+              feedback.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            ]"
+          >
+            <p :class="feedback.type === 'success' ? 'text-green-800' : 'text-red-800'">
+              {{ feedback.message }}
+            </p>
+          </div>
+
+          <div v-if="solicitudParaAsignar">
+            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+              <p class="text-sm font-medium text-gray-900">{{ solicitudParaAsignar.asunto }}</p>
+              <p class="text-xs text-gray-500 mt-1">Solicitante: {{ solicitudParaAsignar.solicitante }}</p>
+              <p class="text-xs text-gray-500">Fecha: {{ new Date(solicitudParaAsignar.fechaCreacion).toLocaleDateString() }}</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Seleccionar Agente *</label>
+              <select 
+                v-model="gestorSeleccionado"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+              >
+                <option :value="null">Seleccione un agente...</option>
+                <option v-for="agente in agentesDisponibles" :key="agente.id" :value="agente.id">
+                  {{ agente.nombre }} - {{ agente.areaNombre || 'Sin área' }}
+                </option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">
+                Puede asignar esta solicitud a cualquier agente de cualquier área
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 p-6 border-t bg-gray-50">
+          <button 
+            @click="cerrarModalAsignarAgente"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            @click="asignarSolicitud"
+            :disabled="loading || !gestorSeleccionado"
+            class="px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span v-if="loading">Asignando...</span>
+            <span v-else>Asignar</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -653,6 +975,7 @@ const activeTab = ref(userRole.value === ROLES.SUPER_ADMIN ? 'users' : 'areas')
 const tabs = computed(() => {
   const allTabs = [
     { id: 'users', label: 'Usuarios', minRole: ROLES.SUPER_ADMIN },
+    { id: 'unassigned', label: 'Sin Asignar', minRole: ROLES.ADMIN },
     { id: 'areas', label: 'Áreas', minRole: ROLES.ADMIN },
     { id: 'categories', label: 'Categorías', minRole: ROLES.ADMIN },
     { id: 'settings', label: 'Configuración', minRole: ROLES.ADMIN },
@@ -666,6 +989,7 @@ const users = ref<Usuario[]>([])
 const areas = ref<Area[]>([])
 const categories = ref<TipoSolicitud[]>([])
 const metricas = ref<MetricasGenerales | null>(null)
+const solicitudesSinAsignar = ref<any[]>([])
 
 // Estados de carga y errores
 const loading = ref(false)
@@ -679,6 +1003,7 @@ const showNewAreaModal = ref(false)
 const showEditAreaModal = ref(false)
 const showNewCategoryModal = ref(false)
 const showEditCategoryModal = ref(false)
+const showAsignarAgenteModal = ref(false)
 
 // Formularios
 const newUser = ref<CrearUsuarioDto>({
@@ -688,12 +1013,25 @@ const newUser = ref<CrearUsuarioDto>({
   password: '',
   rol: 1,
   areaId: 0,  // 0 = Sin área
+  activo: false,  // Por defecto inactivo hasta que se marque explícitamente
   codigoEmpleado: ''
+})
+
+// Formulario para nueva área
+const newArea = ref({
+  nombre: '',
+  descripcion: '',
+  activa: true
 })
 
 const editingUser = ref<Usuario | null>(null)
 const editingArea = ref<Area | null>(null)
 const editingCategory = ref<TipoSolicitud | null>(null)
+
+// Variables para asignar agente
+const solicitudParaAsignar = ref<any | null>(null)
+const gestorSeleccionado = ref<number | null>(null)
+const agentesDisponibles = ref<Usuario[]>([])
 
 // Computed: Solo Agente de Área (rol 4) puede tener área
 const nuevoUsuarioPuedeAsignarArea = computed(() => newUser.value.rol === 4)
@@ -772,6 +1110,30 @@ const cargarMetricas = async () => {
   }
 }
 
+const cargarSolicitudesSinAsignar = async () => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    solicitudesSinAsignar.value = await adminService.obtenerSolicitudesSinAsignar()
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || 'Error al cargar solicitudes sin asignar'
+    console.error('[Administration] Error cargando solicitudes sin asignar:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const cargarAgentesDisponibles = async () => {
+  try {
+    // Obtener todos los usuarios y filtrar solo los agentes (rol 4)
+    const todosUsuarios = await adminService.obtenerUsuarios()
+    agentesDisponibles.value = todosUsuarios.filter(u => u.rolId === 4 && u.activo)
+  } catch (err: any) {
+    console.error('[Administration] Error cargando agentes:', err)
+  }
+}
+
 // ==================== USUARIOS ====================
 
 const createUser = async () => {
@@ -809,6 +1171,7 @@ const createUser = async () => {
       email: newUser.value.email,
       password: newUser.value.password,
       rol: newUser.value.rol,
+      activo: newUser.value.activo,  // Incluir estado activo explícitamente
       codigoEmpleado: newUser.value.codigoEmpleado
     }
     
@@ -963,17 +1326,29 @@ const toggleUsuarioEstado = async (usuario: Usuario) => {
   const nuevoEstado = !usuario.activo
   const accion = nuevoEstado ? 'activar' : 'desactivar'
   
+  console.log('[Administration] 🔄 Cambiando estado:', {
+    usuarioId: usuario.id,
+    estadoActual: usuario.activo,
+    nuevoEstado: nuevoEstado
+  })
+  
   if (!confirm(`¿Estás seguro de que deseas ${accion} al usuario "${usuario.nombre}"?`)) {
     return
   }
 
   loading.value = true
   try {
-    await adminService.cambiarEstadoUsuario(usuario.id, nuevoEstado)
+    const resultado = await adminService.cambiarEstadoUsuario(usuario.id, nuevoEstado)
+    console.log('[Administration] ✅ Respuesta del backend:', resultado)
     mostrarFeedback('success', `Usuario ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente`)
     await cargarUsuarios()
+    
+    // Verificar si se actualizó correctamente
+    const usuarioActualizado = users.value.find(u => u.id === usuario.id)
+    console.log('[Administration] 📋 Usuario después de recargar (JSON):', JSON.stringify(usuarioActualizado, null, 2))
+    console.log('[Administration] 📋 Campo activo:', usuarioActualizado?.activo)
   } catch (err: any) {
-    const errorMsg = err.response?.data?.message || err.message || `Error al ${accion} usuario`
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || `Error al ${accion} usuario`
     mostrarFeedback('error', errorMsg)
     console.error('[Administration] Error cambiando estado:', err)
   } finally {
@@ -982,6 +1357,79 @@ const toggleUsuarioEstado = async (usuario: Usuario) => {
 }
 
 // ==================== ÁREAS ====================
+
+const crearArea = async () => {
+  console.log('[Administration] 🔵 crearArea llamado')
+  
+  // Validación
+  if (!newArea.value.nombre || !newArea.value.nombre.trim()) {
+    mostrarFeedback('error', 'Por favor ingrese el nombre del área')
+    return
+  }
+
+  loading.value = true
+  try {
+    console.log('[Administration] 📤 Creando área:', newArea.value)
+    await adminService.crearArea(newArea.value)
+    mostrarFeedback('success', 'Área creada exitosamente')
+    showNewAreaModal.value = false
+    resetNewAreaForm()
+    await cargarAreas()
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al crear área'
+    mostrarFeedback('error', errorMsg)
+    console.error('[Administration] ❌ Error creando área:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const abrirModalEdicionArea = (area: Area) => {
+  console.log('[Administration] 📝 Abriendo modal de edición de área:', area)
+  editingArea.value = { ...area }
+  showEditAreaModal.value = true
+  feedback.value = null
+}
+
+const cerrarModalEdicionArea = () => {
+  showEditAreaModal.value = false
+  editingArea.value = null
+  feedback.value = null
+}
+
+const actualizarArea = async () => {
+  if (!editingArea.value) return
+
+  console.log('[Administration] 🔄 Actualizando área:', editingArea.value.id)
+  
+  // Validación
+  if (!editingArea.value.nombre || !editingArea.value.nombre.trim()) {
+    mostrarFeedback('error', 'Por favor ingrese el nombre del área')
+    return
+  }
+
+  loading.value = true
+  try {
+    const updateData = {
+      nombre: editingArea.value.nombre,
+      descripcion: editingArea.value.descripcion || '',
+      activa: editingArea.value.activa
+    }
+    
+    console.log('[Administration] 📤 Actualizando área:', updateData)
+    await adminService.actualizarArea(editingArea.value.id, updateData)
+    mostrarFeedback('success', 'Área actualizada exitosamente')
+    showEditAreaModal.value = false
+    editingArea.value = null
+    await cargarAreas()
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al actualizar área'
+    mostrarFeedback('error', errorMsg)
+    console.error('[Administration] ❌ Error actualizando área:', err)
+  } finally {
+    loading.value = false
+  }
+}
 
 const eliminarArea = async (id: number, nombre: string) => {
   if (!confirm(`¿Estás seguro de que deseas eliminar el área "${nombre}"? Esta acción no se puede deshacer.`)) {
@@ -997,6 +1445,45 @@ const eliminarArea = async (id: number, nombre: string) => {
     const errorMsg = err.response?.data?.message || err.message || 'Error al eliminar área'
     mostrarFeedback('error', errorMsg)
     console.error('[Administration] Error eliminando área:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// ==================== SOLICITUDES SIN ASIGNAR ====================
+
+const abrirModalAsignarAgente = async (solicitud: any) => {
+  solicitudParaAsignar.value = solicitud
+  gestorSeleccionado.value = null
+  await cargarAgentesDisponibles()
+  showAsignarAgenteModal.value = true
+  feedback.value = null
+}
+
+const cerrarModalAsignarAgente = () => {
+  showAsignarAgenteModal.value = false
+  solicitudParaAsignar.value = null
+  gestorSeleccionado.value = null
+}
+
+const asignarSolicitud = async () => {
+  if (!solicitudParaAsignar.value || !gestorSeleccionado.value) {
+    mostrarFeedback('error', 'Por favor seleccione un agente')
+    return
+  }
+
+  loading.value = true
+  try {
+    await adminService.asignarSolicitudAAgente(solicitudParaAsignar.value.id, gestorSeleccionado.value)
+    mostrarFeedback('success', 'Solicitud asignada exitosamente')
+    showAsignarAgenteModal.value = false
+    solicitudParaAsignar.value = null
+    gestorSeleccionado.value = null
+    await cargarSolicitudesSinAsignar()
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al asignar solicitud'
+    mostrarFeedback('error', errorMsg)
+    console.error('[Administration] Error asignando solicitud:', err)
   } finally {
     loading.value = false
   }
@@ -1040,7 +1527,16 @@ const resetNewUserForm = () => {
     password: '',
     rol: 1,
     areaId: 0,  // 0 = Sin área
+    activo: false,  // Por defecto inactivo hasta que se marque explícitamente
     codigoEmpleado: ''
+  }
+}
+
+const resetNewAreaForm = () => {
+  newArea.value = {
+    nombre: '',
+    descripcion: '',
+    activa: true
   }
 }
 
@@ -1063,6 +1559,8 @@ onMounted(() => {
   if (activeTab.value === 'users') {
     cargarUsuarios()
     cargarAreas() // Para el dropdown en el modal
+  } else if (activeTab.value === 'unassigned') {
+    cargarSolicitudesSinAsignar()
   } else if (activeTab.value === 'areas') {
     cargarAreas()
   } else if (activeTab.value === 'categories') {
@@ -1081,6 +1579,8 @@ watch(activeTab, (newTab) => {
   if (newTab === 'users') {
     cargarUsuarios()
     cargarAreas() // Para el dropdown
+  } else if (newTab === 'unassigned') {
+    cargarSolicitudesSinAsignar()
   } else if (newTab === 'areas') {
     cargarAreas()
   } else if (newTab === 'categories') {
