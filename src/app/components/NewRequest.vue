@@ -19,11 +19,9 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
           >
             <option value="">Selecciona el tipo de solicitud</option>
-            <option :value="1">Soporte PC</option>
-            <option :value="2">Acceso a Sistema</option>
-            <option :value="3">Reparación</option>
-            <option :value="4">Asignación de Vehículo</option>
-            <option :value="5">Compra de Material</option>
+            <option v-for="tipo in tiposSolicitud" :key="tipo.id" :value="tipo.id">
+              {{ tipo.nombre }}
+            </option>
           </select>
         </div>
 
@@ -165,12 +163,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Save, X, Upload, File } from 'lucide-vue-next'
 import solicitudesService from '../../services/solicitudesService'
+import catalogosService from '../../services/catalogosService'
 
 const router = useRouter()
+
+// Tipos de solicitud desde el backend
+const tiposSolicitud = ref<any[]>([])
 
 // Formulario inicializado completamente vacío
 const requestType = ref<number | ''>('')
@@ -183,6 +185,16 @@ const selectedFile = ref<File | null>(null)
 // Estados
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+// Cargar tipos de solicitud al montar el componente
+onMounted(async () => {
+  try {
+    tiposSolicitud.value = await catalogosService.obtenerTiposSolicitud()
+    console.log('[NewRequest] Tipos de solicitud cargados:', tiposSolicitud.value)
+  } catch (err) {
+    console.error('[NewRequest] Error cargando tipos de solicitud:', err)
+  }
+})
 
 const handleFileChange = (e: Event) => {
   const target = e.target as HTMLInputElement

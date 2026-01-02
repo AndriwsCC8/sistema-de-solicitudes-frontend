@@ -154,7 +154,7 @@
                 <span>Asignarme</span>
               </button>
               
-              <!-- Botón Asignar a Gestor: Admin, si NO está asignada -->
+              <!-- Botón Asignar/Reasignar a Gestor: Admin, si NO está resuelta ni rechazada -->
               <button
                 v-if="puedeAsignarAGestor(solicitud)"
                 @click.stop="abrirModalAsignacion(solicitud)"
@@ -163,7 +163,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
-                <span>Asignar</span>
+                <span>{{ esReasignacion(solicitud) ? 'Reasignar' : 'Asignar' }}</span>
               </button>
               
               <!-- Botón Resolver: quien tiene la solicitud asignada -->
@@ -206,7 +206,7 @@
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
         <!-- Header -->
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-gray-900">Asignar Solicitud</h3>
+          <h3 class="text-lg font-semibold text-gray-900">{{ esReasignacion(solicitudSeleccionada) ? 'Reasignar Solicitud' : 'Asignar Solicitud' }}</h3>
           <button @click="cerrarModal" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -229,7 +229,7 @@
 
           <!-- Lista de Gestores -->
           <div v-else-if="gestoresDisponibles.length > 0" class="space-y-2">
-            <p class="text-sm text-gray-600 mb-3">Selecciona un gestor para asignar esta solicitud:</p>
+            <p class="text-sm text-gray-600 mb-3">Selecciona un gestor para {{ esReasignacion(solicitudSeleccionada) ? 'reasignar' : 'asignar' }} esta solicitud:</p>
             <button
               v-for="gestor in gestoresDisponibles"
               :key="gestor.id"
@@ -407,11 +407,17 @@ const puedeAsignarseSolicitud = (solicitud: any): boolean => {
   return esGestor && noAsignada
 }
 
-// Admin puede asignar a cualquier gestor si NO está asignada
+// Admin puede asignar/reasignar a cualquier gestor si NO está resuelta ni rechazada
 const puedeAsignarAGestor = (solicitud: any): boolean => {
   const esAdmin = authStore.userRole === ROLES.ADMIN || authStore.userRole === ROLES.SUPER_ADMIN
-  const noAsignada = !solicitud.gestorAsignadoId && solicitud.estado === 'Nueva'
-  return esAdmin && noAsignada
+  const estadosNoPermitidos = ['Resuelta', 'Rechazada']
+  const estadoPermitido = !estadosNoPermitidos.includes(solicitud.estado)
+  return esAdmin && estadoPermitido
+}
+
+// Verificar si es una reasignación (ya tiene gestor asignado)
+const esReasignacion = (solicitud: any): boolean => {
+  return !!solicitud.gestorAsignadoId
 }
 
 // Puede resolver si está asignada a él y el estado es Asignado
@@ -507,9 +513,10 @@ const asignarAGestor = async (gestorId: number) => {
     console.log('[AreaInbox] Asignando solicitud a gestor:', gestorId)
     await solicitudesService.asignarSolicitud(solicitudSeleccionada.value.id, gestorId)
     
+    const esReasig = esReasignacion(solicitudSeleccionada.value)
     feedback.value = {
       type: 'success',
-      message: '✓ Solicitud asignada exitosamente'
+      message: esReasig ? '✓ Solicitud reasignada exitosamente' : '✓ Solicitud asignada exitosamente'
     }
     
     mostrarModal.value = false
