@@ -42,7 +42,7 @@ export interface Area {
   id: number
   nombre: string
   descripcion?: string
-  activa: boolean
+  activo: boolean
   cantidadAgentes?: number
   fechaCreacion?: string
 }
@@ -50,13 +50,13 @@ export interface Area {
 export interface CrearAreaDto {
   nombre: string
   descripcion?: string
-  activa: boolean
+  activo: boolean
 }
 
 export interface ActualizarAreaDto {
   nombre?: string
   descripcion?: string
-  activa?: boolean
+  activo?: boolean
 }
 
 export interface TipoSolicitud {
@@ -107,6 +107,9 @@ export interface SolicitudSinAsignar {
   solicitanteEmail: string
   areaId?: number | null  // Puede ser null para solicitudes sin área asignada
   area?: string | null    // Nombre del área (null si no tiene)
+  gestorAsignadoId?: number | null  // ID del gestor asignado (null si no está asignada)
+  gestorAsignado?: string | null    // Nombre del gestor asignado (null si no está asignada)
+  gestorAsignadoEmail?: string | null  // Email del gestor asignado
 }
 
 // ==================== SERVICIO ====================
@@ -394,6 +397,22 @@ const adminService = {
       console.log('[adminService] ✅ Solicitud asignada exitosamente')
     } catch (error: any) {
       console.error('[adminService] ❌ Error al asignar solicitud:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Obtener todas las solicitudes tipo "Otro" (asignadas o no)
+   * GET /api/admin/solicitudes/tipo-otro
+   */
+  async obtenerSolicitudesTipoOtro(): Promise<SolicitudSinAsignar[]> {
+    try {
+      console.log('[adminService] 📤 Obteniendo todas las solicitudes tipo Otro...')
+      const response = await api.get<SolicitudSinAsignar[]>('/admin/solicitudes/tipo-otro')
+      console.log('[adminService] ✅ Solicitudes tipo Otro obtenidas:', response.data.length)
+      return response.data
+    } catch (error: any) {
+      console.error('[adminService] ❌ Error al obtener solicitudes tipo Otro:', error)
       throw error
     }
   }
