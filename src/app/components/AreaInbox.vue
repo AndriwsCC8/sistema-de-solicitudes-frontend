@@ -476,9 +476,27 @@ const abrirModalAsignacion = async (solicitud: any) => {
     // El backend retorna areaId directamente en la solicitud
     const areaId = solicitud.areaId || solicitud.tipoSolicitudAreaId
     
+    // Para solicitudes tipo "Otro" (sin área)
     if (!areaId) {
-      console.error('[AreaInbox] No se encontró areaId en la solicitud:', solicitud)
-      errorGestores.value = 'No se puede determinar el área de esta solicitud'
+      console.log('[AreaInbox] Solicitud sin área (tipo Otro), gestorAsignadoId:', solicitud.gestorAsignadoId)
+      console.log('[AreaInbox] Usuario actual ID:', authStore.user?.id)
+      
+      // Si ya está asignada al agente actual, permitir que continúe (para ver detalles)
+      if (solicitud.gestorAsignadoId === authStore.user?.id) {
+        console.log('[AreaInbox] Solicitud ya asignada al agente actual, permitir acceso')
+        mostrarModal.value = false
+        return
+      }
+      
+      // Si NO está asignada a nadie, bloquear (debe asignarse desde Administración)
+      if (!solicitud.gestorAsignadoId) {
+        errorGestores.value = 'Las solicitudes tipo "Otro" deben ser asignadas inicialmente desde Administración → Sin Asignar'
+        cargandoGestores.value = false
+        return
+      }
+      
+      // Si está asignada a otro agente, bloquear (las reasignaciones de tipo Otro solo desde Administración)
+      errorGestores.value = 'Las solicitudes tipo "Otro" solo pueden ser reasignadas desde Administración'
       cargandoGestores.value = false
       return
     }

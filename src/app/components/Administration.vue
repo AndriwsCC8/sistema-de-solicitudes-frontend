@@ -230,6 +230,105 @@
       </div>
     </div>
 
+    <!-- Solicitudes Tipo Otro Management -->
+    <div v-if="activeTab === 'tipo-otro'" class="space-y-6">
+      <!-- Feedback Message -->
+      <div
+        v-if="feedback"
+        :class="[
+          'rounded-lg p-4',
+          feedback.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        ]"
+      >
+        <p :class="feedback.type === 'success' ? 'text-green-800' : 'text-red-800'">
+          {{ feedback.message }}
+        </p>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900">Solicitudes Tipo "Otro"</h2>
+            <p class="text-sm text-gray-600 mt-1">Todas las solicitudes tipo "Otro" (asignadas y sin asignar)</p>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="loading" class="text-center py-12">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
+          <p class="text-gray-500 mt-3">Cargando solicitudes...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="solicitudesTipoOtro.length === 0" class="text-center py-12">
+          <p class="text-gray-500">No hay solicitudes tipo "Otro"</p>
+          <p class="text-sm text-gray-400 mt-2">Las solicitudes tipo "Otro" aparecerán aquí</p>
+        </div>
+
+        <!-- Solicitudes Cards -->
+        <div v-else class="space-y-4">
+          <div
+            v-for="solicitud in solicitudesTipoOtro"
+            :key="solicitud.id"
+            class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="text-sm font-medium text-gray-500">{{ solicitud.numeroSolicitud }}</span>
+                  <span
+                    :class="[
+                      'px-2 py-1 text-xs font-medium rounded-full',
+                      solicitud.prioridad === 3 ? 'bg-red-100 text-red-700 border border-red-200' :
+                      solicitud.prioridad === 2 ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                      'bg-green-100 text-green-700 border border-green-200'
+                    ]"
+                  >
+                    {{ solicitud.prioridad === 3 ? 'Alta' : solicitud.prioridad === 2 ? 'Media' : 'Baja' }}
+                  </span>
+                  <span
+                    v-if="solicitud.gestorAsignadoId"
+                    class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700"
+                  >
+                    Asignada
+                  </span>
+                  <span
+                    v-else
+                    class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700"
+                  >
+                    Sin Asignar
+                  </span>
+                  <span class="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600">
+                    Sin área
+                  </span>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-1">{{ solicitud.asunto }}</h3>
+                <p class="text-sm text-gray-600 mb-2">
+                  {{ solicitud.tipoSolicitud }} • {{ new Date(solicitud.fechaCreacion).toLocaleDateString() }}
+                </p>
+                <div class="text-sm text-gray-500">
+                  <span class="font-medium">Solicitante:</span> {{ solicitud.solicitante }}
+                  <span class="text-gray-400 ml-2">{{ solicitud.solicitanteEmail }}</span>
+                </div>
+                <div v-if="solicitud.gestorAsignado" class="text-sm text-gray-500 mt-1">
+                  <span class="font-medium">Asignada a:</span> {{ solicitud.gestorAsignado }}
+                </div>
+              </div>
+              <button
+                @click="abrirModalAsignarAgente(solicitud)"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                {{ solicitud.gestorAsignadoId ? 'Reasignar' : 'Asignar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Areas Management -->
     <div v-if="activeTab === 'areas'" class="space-y-6">
       <!-- Feedback Message -->
@@ -271,9 +370,19 @@
           <div v-for="area in areas" :key="area.id" class="border rounded-lg p-6 hover:shadow-md transition-shadow">
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-lg font-semibold text-gray-900">{{ area.nombre }}</h3>
-              <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
-                {{ area.cantidadAgentes || 0 }} agentes
-              </span>
+              <div class="flex items-center gap-2">
+                <span
+                  :class="[
+                    'px-2 py-1 text-xs font-medium rounded-full',
+                    area.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  ]"
+                >
+                  {{ area.activo ? 'Activa' : 'Inactiva' }}
+                </span>
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                  {{ area.cantidadAgentes || 0 }} agentes
+                </span>
+              </div>
             </div>
             <p class="text-sm text-gray-600 mb-4">{{ area.descripcion || 'Sin descripción' }}</p>
             <div class="flex gap-2">
@@ -282,6 +391,17 @@
                 class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
               >
                 Editar
+              </button>
+              <button 
+                @click="toggleAreaEstado(area)"
+                :class="[
+                  'px-3 py-2 text-sm border rounded-md',
+                  area.activo 
+                    ? 'text-orange-600 border-orange-200 hover:bg-orange-50' 
+                    : 'text-green-600 border-green-200 hover:bg-green-50'
+                ]"
+              >
+                {{ area.activo ? 'Desactivar' : 'Activar' }}
               </button>
               <button 
                 @click="eliminarArea(area.id, area.nombre)"
@@ -784,7 +904,7 @@
             <label class="flex items-center gap-3 cursor-pointer">
               <input 
                 type="checkbox" 
-                v-model="newArea.activa"
+                v-model="newArea.activo"
                 class="w-4 h-4 text-[#0f3a72] focus:ring-[#0f3a72] rounded" 
               />
               <span class="text-sm text-gray-700">Área activa</span>
@@ -860,7 +980,7 @@
             <label class="flex items-center gap-3 cursor-pointer">
               <input 
                 type="checkbox" 
-                v-model="editingArea.activa"
+                v-model="editingArea.activo"
                 class="w-4 h-4 text-[#0f3a72] focus:ring-[#0f3a72] rounded" 
               />
               <span class="text-sm text-gray-700">Área activa</span>
@@ -976,6 +1096,7 @@ const tabs = computed(() => {
   const allTabs = [
     { id: 'users', label: 'Usuarios', minRole: ROLES.SUPER_ADMIN },
     { id: 'unassigned', label: 'Sin Asignar', minRole: ROLES.ADMIN },
+    { id: 'tipo-otro', label: 'Tipo Otro', minRole: ROLES.ADMIN },
     { id: 'areas', label: 'Áreas', minRole: ROLES.ADMIN },
     { id: 'categories', label: 'Categorías', minRole: ROLES.ADMIN },
     { id: 'settings', label: 'Configuración', minRole: ROLES.ADMIN },
@@ -990,6 +1111,7 @@ const areas = ref<Area[]>([])
 const categories = ref<TipoSolicitud[]>([])
 const metricas = ref<MetricasGenerales | null>(null)
 const solicitudesSinAsignar = ref<any[]>([])
+const solicitudesTipoOtro = ref<any[]>([])
 
 // Estados de carga y errores
 const loading = ref(false)
@@ -1021,7 +1143,7 @@ const newUser = ref<CrearUsuarioDto>({
 const newArea = ref({
   nombre: '',
   descripcion: '',
-  activa: true
+  activo: true
 })
 
 const editingUser = ref<Usuario | null>(null)
@@ -1124,11 +1246,43 @@ const cargarSolicitudesSinAsignar = async () => {
   }
 }
 
+const cargarSolicitudesTipoOtro = async () => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    console.log('[Administration] 🔍 Cargando solicitudes tipo Otro...')
+    solicitudesTipoOtro.value = await adminService.obtenerSolicitudesTipoOtro()
+    console.log('[Administration] ✅ Solicitudes tipo Otro cargadas:', solicitudesTipoOtro.value.length)
+    console.log('[Administration] 📋 Solicitudes:', solicitudesTipoOtro.value)
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || 'Error al cargar solicitudes tipo Otro'
+    console.error('[Administration] ❌ Error cargando solicitudes tipo Otro:', err)
+    console.error('[Administration] ❌ Error completo:', err.response)
+  } finally {
+    loading.value = false
+  }
+}
+
 const cargarAgentesDisponibles = async () => {
   try {
-    // Obtener todos los usuarios y filtrar solo los agentes (rol 4)
+    // Obtener todos los usuarios y áreas
     const todosUsuarios = await adminService.obtenerUsuarios()
-    agentesDisponibles.value = todosUsuarios.filter(u => u.rolId === 4 && u.activo)
+    const todasAreas = await adminService.obtenerAreas()
+    
+    // Filtrar solo agentes activos (rol 4) cuya área también esté activa
+    agentesDisponibles.value = todosUsuarios.filter(u => {
+      if (u.rolId !== 4 || !u.activo) return false
+      
+      // Si el agente no tiene área asignada, no está disponible
+      if (!u.areaId) return false
+      
+      // Verificar que el área del agente esté activa
+      const area = todasAreas.find(a => a.id === u.areaId)
+      return area && area.activo
+    })
+    
+    console.log('[Administration] Agentes disponibles (áreas activas):', agentesDisponibles.value.length)
   } catch (err: any) {
     console.error('[Administration] Error cargando agentes:', err)
   }
@@ -1314,7 +1468,8 @@ const eliminarUsuario = async (id: number, nombre: string) => {
     mostrarFeedback('success', 'Usuario eliminado exitosamente')
     await cargarUsuarios()
   } catch (err: any) {
-    const errorMsg = err.response?.data?.message || err.message || 'Error al eliminar usuario'
+    // Capturar mensaje del backend en español (campo 'mensaje') o inglés (campo 'message')
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al eliminar usuario'
     mostrarFeedback('error', errorMsg)
     console.error('[Administration] Error eliminando usuario:', err)
   } finally {
@@ -1413,7 +1568,7 @@ const actualizarArea = async () => {
     const updateData = {
       nombre: editingArea.value.nombre,
       descripcion: editingArea.value.descripcion || '',
-      activa: editingArea.value.activa
+      activo: editingArea.value.activo
     }
     
     console.log('[Administration] 📤 Actualizando área:', updateData)
@@ -1442,9 +1597,32 @@ const eliminarArea = async (id: number, nombre: string) => {
     mostrarFeedback('success', 'Área eliminada exitosamente')
     await cargarAreas()
   } catch (err: any) {
-    const errorMsg = err.response?.data?.message || err.message || 'Error al eliminar área'
+    // Capturar mensaje del backend en español (campo 'mensaje') o inglés (campo 'message')
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al eliminar área'
     mostrarFeedback('error', errorMsg)
     console.error('[Administration] Error eliminando área:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const toggleAreaEstado = async (area: Area) => {
+  const nuevoEstado = !area.activo
+  const accion = nuevoEstado ? 'activar' : 'desactivar'
+  
+  if (!confirm(`¿Estás seguro de que deseas ${accion} el área "${area.nombre}"?`)) {
+    return
+  }
+
+  loading.value = true
+  try {
+    await adminService.actualizarArea(area.id, { activo: nuevoEstado })
+    mostrarFeedback('success', `Área ${nuevoEstado ? 'activada' : 'desactivada'} exitosamente`)
+    await cargarAreas()
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || `Error al ${accion} área`
+    mostrarFeedback('error', errorMsg)
+    console.error(`[Administration] Error al ${accion} área:`, err)
   } finally {
     loading.value = false
   }
@@ -1480,6 +1658,7 @@ const asignarSolicitud = async () => {
     solicitudParaAsignar.value = null
     gestorSeleccionado.value = null
     await cargarSolicitudesSinAsignar()
+    await cargarSolicitudesTipoOtro()
   } catch (err: any) {
     const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al asignar solicitud'
     mostrarFeedback('error', errorMsg)
@@ -1536,7 +1715,7 @@ const resetNewAreaForm = () => {
   newArea.value = {
     nombre: '',
     descripcion: '',
-    activa: true
+    activo: true
   }
 }
 
@@ -1581,6 +1760,8 @@ watch(activeTab, (newTab) => {
     cargarAreas() // Para el dropdown
   } else if (newTab === 'unassigned') {
     cargarSolicitudesSinAsignar()
+  } else if (newTab === 'tipo-otro') {
+    cargarSolicitudesTipoOtro()
   } else if (newTab === 'areas') {
     cargarAreas()
   } else if (newTab === 'categories') {
