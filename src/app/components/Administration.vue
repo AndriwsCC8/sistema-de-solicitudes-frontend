@@ -462,8 +462,8 @@
             <div class="flex items-center gap-4">
               <span class="text-sm text-gray-500">{{ category.cantidadSolicitudes || 0 }} solicitudes</span>
               <button 
+                @click="abrirModalEdicionCategoria(category)"
                 class="text-[#0f3a72] hover:text-[#0d3260] text-sm"
-                disabled
               >
                 Editar
               </button>
@@ -474,53 +474,6 @@
                 Eliminar
               </button>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Settings -->
-    <div v-if="activeTab === 'settings'" class="space-y-6">
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-6">Configuración del Sistema</h2>
-        
-        <div class="space-y-6">
-          <div>
-            <label class="text-sm font-medium text-gray-700 mb-2 block">Nombre de la Organización</label>
-            <input 
-              type="text" 
-              value="Mesa de Servicios"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
-            />
-          </div>
-
-          <div>
-            <label class="text-sm font-medium text-gray-700 mb-2 block">Email de Notificaciones</label>
-            <input 
-              type="email" 
-              value="notificaciones@empresa.com"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
-            />
-          </div>
-
-          <div>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked class="w-4 h-4 text-[#0f3a72] focus:ring-[#0f3a72] rounded" />
-              <span class="text-sm text-gray-700">Permitir auto-registro de usuarios</span>
-            </label>
-          </div>
-
-          <div>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked class="w-4 h-4 text-[#0f3a72] focus:ring-[#0f3a72] rounded" />
-              <span class="text-sm text-gray-700">Enviar notificaciones por email</span>
-            </label>
-          </div>
-
-          <div class="pt-4">
-            <button class="px-6 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors">
-              Guardar Cambios
-            </button>
           </div>
         </div>
       </div>
@@ -542,25 +495,28 @@
             <p v-if="metricas.variacionMensual" class="text-xs mt-2" :class="metricas.variacionMensual >= 0 ? 'text-green-600' : 'text-red-600'">
               {{ metricas.variacionMensual >= 0 ? '↑' : '↓' }} {{ Math.abs(metricas.variacionMensual) }}% vs mes anterior
             </p>
+            <p v-else class="text-xs text-gray-500 mt-2">Todas las solicitudes</p>
           </div>
           <div class="bg-white rounded-lg shadow-sm p-6">
             <p class="text-sm text-gray-600 mb-1">En Progreso</p>
-            <p class="text-3xl font-bold text-blue-600">{{ metricas.enProgreso }}</p>
+            <p class="text-3xl font-bold text-blue-600">{{ metricas.solicitudesEnProceso }}</p>
             <p class="text-xs text-gray-500 mt-2">
-              {{ metricas.totalSolicitudes > 0 ? Math.round((metricas.enProgreso / metricas.totalSolicitudes) * 100) : 0 }}% del total
+              {{ metricas.totalSolicitudes > 0 ? Math.round((metricas.solicitudesEnProceso / metricas.totalSolicitudes) * 100) : 0 }}% del total
             </p>
           </div>
           <div class="bg-white rounded-lg shadow-sm p-6">
             <p class="text-sm text-gray-600 mb-1">Resueltas</p>
-            <p class="text-3xl font-bold text-green-600">{{ metricas.resueltas }}</p>
+            <p class="text-3xl font-bold text-green-600">{{ metricas.solicitudesResueltas }}</p>
             <p class="text-xs text-gray-500 mt-2">
-              {{ metricas.totalSolicitudes > 0 ? Math.round((metricas.resueltas / metricas.totalSolicitudes) * 100) : 0 }}% del total
+              {{ metricas.totalSolicitudes > 0 ? Math.round((metricas.solicitudesResueltas / metricas.totalSolicitudes) * 100) : 0 }}% del total
             </p>
           </div>
           <div class="bg-white rounded-lg shadow-sm p-6">
-            <p class="text-sm text-gray-600 mb-1">Tiempo Promedio</p>
-            <p class="text-3xl font-bold text-gray-900">{{ metricas.tiempoPromedioHoras ? metricas.tiempoPromedioHoras.toFixed(1) : '0.0' }}h</p>
-            <p class="text-xs text-gray-500 mt-2">Horas de resolución</p>
+            <p class="text-sm text-gray-600 mb-1">Rechazadas</p>
+            <p class="text-3xl font-bold text-red-600">{{ metricas.solicitudesRechazadas }}</p>
+            <p class="text-xs text-gray-500 mt-2">
+              {{ metricas.totalSolicitudes > 0 ? Math.round((metricas.solicitudesRechazadas / metricas.totalSolicitudes) * 100) : 0 }}% del total
+            </p>
           </div>
         </div>
       </template>
@@ -1007,6 +963,167 @@
       </div>
     </div>
 
+    <!-- Modal: Nueva Categoría -->
+    <div v-if="showNewCategoryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cerrarModalNuevaCategoria">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-6 border-b">
+          <h3 class="text-xl font-semibold text-gray-900">Agregar Nueva Tipo de Solicitud</h3>
+          <button 
+            @click="cerrarModalNuevaCategoria"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <!-- Feedback Message dentro del modal -->
+          <div
+            v-if="feedback"
+            :class="[
+              'rounded-lg p-4',
+              feedback.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            ]"
+          >
+            <p :class="feedback.type === 'success' ? 'text-green-800' : 'text-red-800'">
+              {{ feedback.message }}
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+            <input 
+              type="text" 
+              v-model="newCategory.nombre"
+              placeholder="Ingresa el nombre"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+            <textarea 
+              v-model="newCategory.descripcion"
+              placeholder="Descripción de la categoría (opcional)"
+              rows="3"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            ></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Área Relacionada</label>
+            <select 
+              v-model="newCategory.areaId"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            >
+              <option :value="0">Selecciona un área</option>
+              <option v-for="area in areas" :key="area.id" :value="area.id">
+                {{ area.nombre }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 p-6 border-t bg-gray-50">
+          <button 
+            @click="cerrarModalNuevaCategoria"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            @click="crearCategoria"
+            :disabled="loading || !newCategory.nombre"
+            class="px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span v-if="loading">Creando...</span>
+            <span v-else>Crear</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Editar Categoría -->
+    <div v-if="showEditCategoryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cerrarModalEdicionCategoria">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-6 border-b">
+          <h3 class="text-xl font-semibold text-gray-900">Editar Tipo de Solicitud</h3>
+          <button 
+            @click="cerrarModalEdicionCategoria"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div class="p-6 space-y-4">
+          <!-- Feedback Message dentro del modal -->
+          <div
+            v-if="feedback"
+            :class="[
+              'rounded-lg p-4',
+              feedback.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            ]"
+          >
+            <p :class="feedback.type === 'success' ? 'text-green-800' : 'text-red-800'">
+              {{ feedback.message }}
+            </p>
+          </div>
+
+          <div v-if="editingCategory">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+              <input 
+                type="text" 
+                v-model="editingCategory.nombre"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+              <textarea 
+                v-model="editingCategory.descripcion"
+                placeholder="Descripción de la categoría (opcional)"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Área Relacionada</label>
+              <select 
+                v-model="editingCategory.areaId"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+              >
+                <option :value="null">Sin área</option>
+                <option v-for="area in areas" :key="area.id" :value="area.id">
+                  {{ area.nombre }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 p-6 border-t bg-gray-50">
+          <button 
+            @click="cerrarModalEdicionCategoria"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            @click="actualizarCategoria"
+            :disabled="loading"
+            class="px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span v-if="loading">Guardando...</span>
+            <span v-else>Guardar Cambios</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal: Asignar Agente -->
     <div v-if="showAsignarAgenteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="cerrarModalAsignarAgente">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
@@ -1099,7 +1216,6 @@ const tabs = computed(() => {
     { id: 'tipo-otro', label: 'Tipo Otro', minRole: ROLES.ADMIN },
     { id: 'areas', label: 'Áreas', minRole: ROLES.ADMIN },
     { id: 'categories', label: 'Categorías', minRole: ROLES.ADMIN },
-    { id: 'settings', label: 'Configuración', minRole: ROLES.ADMIN },
     { id: 'reports', label: 'Reportes', minRole: ROLES.ADMIN }
   ]
   return allTabs.filter(tab => hasMinRole(userRole.value, tab.minRole))
@@ -1143,6 +1259,14 @@ const newUser = ref<CrearUsuarioDto>({
 const newArea = ref({
   nombre: '',
   descripcion: '',
+  activo: true
+})
+
+// Formulario para nueva categoría
+const newCategory = ref({
+  nombre: '',
+  descripcion: '',
+  areaId: 0,  // 0 = Sin área
   activo: true
 })
 
@@ -1457,21 +1581,40 @@ const actualizarUsuario = async () => {
   }
 }
 
-const eliminarUsuario = async (id: number, nombre: string) => {
-  if (!confirm(`¿Estás seguro de que deseas eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`)) {
+const eliminarUsuario = async (id: number, nombre: string, force: boolean = false) => {
+  // Primera confirmación básica
+  if (!force && !confirm(`¿Estás seguro de que deseas eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`)) {
     return
   }
 
   loading.value = true
   try {
-    await adminService.eliminarUsuario(id)
+    await adminService.eliminarUsuario(id, force)
     mostrarFeedback('success', 'Usuario eliminado exitosamente')
     await cargarUsuarios()
   } catch (err: any) {
-    // Capturar mensaje del backend en español (campo 'mensaje') o inglés (campo 'message')
+    // Capturar mensaje del backend
     const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al eliminar usuario'
-    mostrarFeedback('error', errorMsg)
-    console.error('[Administration] Error eliminando usuario:', err)
+    
+    // Si el error es por solicitudes asignadas y no es forzado, mostrar confirmación especial
+    if (!force && err.response?.status === 400 && errorMsg.includes('solicitudes asignadas')) {
+      const confirmarForzar = confirm(
+        `⚠️ ADVERTENCIA: El usuario "${nombre}" tiene solicitudes asignadas.\n\n` +
+        `Si eliminas este usuario:\n` +
+        `• Sus solicitudes quedarán sin gestor asignado\n` +
+        `• Sus comentarios serán eliminados\n` +
+        `• Su historial será eliminado\n\n` +
+        `¿Estás seguro de que deseas continuar con la eliminación?`
+      )
+      
+      if (confirmarForzar) {
+        // Reintentar con force=true
+        await eliminarUsuario(id, nombre, true)
+      }
+    } else {
+      mostrarFeedback('error', errorMsg)
+      console.error('[Administration] Error eliminando usuario:', err)
+    }
   } finally {
     loading.value = false
   }
@@ -1681,9 +1824,87 @@ const eliminarCategoria = async (id: number, nombre: string) => {
     mostrarFeedback('success', 'Categoría eliminada exitosamente')
     await cargarCategorias()
   } catch (err: any) {
-    const errorMsg = err.response?.data?.message || err.message || 'Error al eliminar categoría'
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al eliminar categoría'
     mostrarFeedback('error', errorMsg)
     console.error('[Administration] Error eliminando categoría:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const cerrarModalNuevaCategoria = () => {
+  showNewCategoryModal.value = false
+  resetNewCategoryForm()
+  feedback.value = null
+}
+
+const resetNewCategoryForm = () => {
+  newCategory.value = {
+    nombre: '',
+    descripcion: '',
+    areaId: 0,
+    activo: true
+  }
+}
+
+const crearCategoria = async () => {
+  if (!newCategory.value.nombre) {
+    mostrarFeedback('error', 'El nombre es requerido')
+    return
+  }
+
+  loading.value = true
+  try {
+    await adminService.crearTipoSolicitud({
+      nombre: newCategory.value.nombre,
+      descripcion: newCategory.value.descripcion,
+      areaId: newCategory.value.areaId || 0,
+      activo: newCategory.value.activo
+    })
+    mostrarFeedback('success', 'Categoría creada exitosamente')
+    showNewCategoryModal.value = false
+    resetNewCategoryForm()
+    await cargarCategorias()
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al crear categoría'
+    mostrarFeedback('error', errorMsg)
+    console.error('[Administration] Error creando categoría:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const abrirModalEdicionCategoria = (category: TipoSolicitud) => {
+  editingCategory.value = { ...category }
+  showEditCategoryModal.value = true
+  feedback.value = null
+}
+
+const cerrarModalEdicionCategoria = () => {
+  showEditCategoryModal.value = false
+  editingCategory.value = null
+  feedback.value = null
+}
+
+const actualizarCategoria = async () => {
+  if (!editingCategory.value) return
+
+  loading.value = true
+  try {
+    await adminService.actualizarTipoSolicitud(editingCategory.value.id, {
+      nombre: editingCategory.value.nombre,
+      descripcion: editingCategory.value.descripcion,
+      areaId: editingCategory.value.areaId || undefined,
+      activo: editingCategory.value.activo
+    })
+    mostrarFeedback('success', 'Categoría actualizada exitosamente')
+    showEditCategoryModal.value = false
+    editingCategory.value = null
+    await cargarCategorias()
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al actualizar categoría'
+    mostrarFeedback('error', errorMsg)
+    console.error('[Administration] Error actualizando categoría:', err)
   } finally {
     loading.value = false
   }

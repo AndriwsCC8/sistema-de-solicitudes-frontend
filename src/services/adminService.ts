@@ -86,9 +86,10 @@ export interface ActualizarTipoSolicitudDto {
 
 export interface MetricasGenerales {
   totalSolicitudes: number
-  enProgreso: number
-  resueltas: number
-  tiempoPromedioHoras: number
+  solicitudesEnProceso: number
+  solicitudesResueltas: number
+  solicitudesRechazadas: number
+  tiempoPromedioResolucion?: number
   variacionMensual?: number
 }
 
@@ -176,10 +177,12 @@ const adminService = {
    * Eliminar un usuario (Solo SuperAdmin)
    * DELETE /api/admin/usuarios/{id}
    */
-  async eliminarUsuario(id: number): Promise<void> {
+  async eliminarUsuario(id: number, force: boolean = false): Promise<void> {
     try {
-      console.log('[adminService] 📤 Eliminando usuario:', id)
-      await api.delete(`/admin/usuarios/${id}`)
+      console.log('[adminService] 📤 Eliminando usuario:', id, force ? '(forzado)' : '')
+      await api.delete(`/admin/usuarios/${id}`, {
+        params: { force }
+      })
       console.log('[adminService] ✅ Usuario eliminado')
     } catch (error: any) {
       console.error('[adminService] ❌ Error al eliminar usuario:', error)
