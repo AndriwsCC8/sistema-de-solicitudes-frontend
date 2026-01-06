@@ -391,12 +391,12 @@ const adminService = {
 
   /**
    * Asignar una solicitud a un agente (permite asignación flexible para tipo "Otro")
-   * POST /api/solicitudes/asignar-agente
+   * POST /api/solicitudes/{id}/asignar/{usuarioId}
    */
   async asignarSolicitudAAgente(solicitudId: number, gestorId: number): Promise<void> {
     try {
       console.log('[adminService] 📤 Asignando solicitud', solicitudId, 'a gestor', gestorId)
-      await api.post('/solicitudes/asignar-agente', { solicitudId, gestorId })
+      await api.post(`/solicitudes/${solicitudId}/asignar/${gestorId}`)
       console.log('[adminService] ✅ Solicitud asignada exitosamente')
     } catch (error: any) {
       console.error('[adminService] ❌ Error al asignar solicitud:', error)
@@ -416,6 +416,29 @@ const adminService = {
       return response.data
     } catch (error: any) {
       console.error('[adminService] ❌ Error al obtener solicitudes tipo Otro:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Obtener todos los agentes disponibles (Admin y SuperAdmin)
+   * GET /api/admin/agentes
+   */
+  async obtenerAgentes(): Promise<Usuario[]> {
+    try {
+      console.log('[adminService] 📤 Obteniendo agentes disponibles...')
+      const response = await api.get<Usuario[]>('/admin/agentes')
+      
+      // Normalizar: asegurar que rolId esté presente
+      const agentes = response.data.map(u => ({
+        ...u,
+        rolId: u.rolId || u.rol || 4  // Si backend devuelve 'rol', usarlo como 'rolId'
+      }))
+      
+      console.log('[adminService] ✅ Agentes obtenidos:', agentes.length)
+      return agentes
+    } catch (error: any) {
+      console.error('[adminService] ❌ Error al obtener agentes:', error)
       throw error
     }
   }

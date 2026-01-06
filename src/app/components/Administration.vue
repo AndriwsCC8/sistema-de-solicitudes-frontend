@@ -287,6 +287,11 @@
                     {{ solicitud.prioridad === 3 ? 'Alta' : solicitud.prioridad === 2 ? 'Media' : 'Baja' }}
                   </span>
                   <span
+                    :class="['px-2 py-1 text-xs font-medium rounded-full', getEstadoInfo(solicitud.estado).class]"
+                  >
+                    {{ getEstadoInfo(solicitud.estado).label }}
+                  </span>
+                  <span
                     v-if="solicitud.gestorAsignadoId"
                     class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700"
                   >
@@ -1390,25 +1395,51 @@ const cargarSolicitudesTipoOtro = async () => {
 
 const cargarAgentesDisponibles = async () => {
   try {
-    // Obtener todos los usuarios y áreas
-    const todosUsuarios = await adminService.obtenerUsuarios()
+    console.log('[Administration] 🔍 Cargando agentes disponibles...')
+    
+    // Obtener áreas primero
     const todasAreas = await adminService.obtenerAreas()
     
-    // Filtrar solo agentes activos (rol 4) cuya área también esté activa
-    agentesDisponibles.value = todosUsuarios.filter(u => {
-      if (u.rolId !== 4 || !u.activo) return false
+    // Intentar obtener agentes usando el endpoint específico (Admin y SuperAdmin)
+    try {
+      const todosAgentes = await adminService.obtenerAgentes()
       
-      // Si el agente no tiene área asignada, no está disponible
-      if (!u.areaId) return false
+      // Filtrar solo agentes activos cuya área también esté activa
+      agentesDisponibles.value = todosAgentes.filter(u => {
+        if (u.rolId !== 4 || !u.activo) return false
+        
+        // Si el agente no tiene área asignada, no está disponible
+        if (!u.areaId) return false
+        
+        // Verificar que el área del agente esté activa
+        const area = todasAreas.find(a => a.id === u.areaId)
+        return area && area.activo
+      })
       
-      // Verificar que el área del agente esté activa
-      const area = todasAreas.find(a => a.id === u.areaId)
-      return area && area.activo
-    })
-    
-    console.log('[Administration] Agentes disponibles (áreas activas):', agentesDisponibles.value.length)
+      console.log('[Administration] ✅ Agentes disponibles (usando endpoint /admin/agentes):', agentesDisponibles.value.length)
+    } catch (err: any) {
+      // Si el endpoint /admin/agentes no existe o falla, intentar con /admin/usuarios (solo SuperAdmin)
+      console.warn('[Administration] ⚠️ Endpoint /admin/agentes no disponible, intentando fallback con /admin/usuarios')
+      
+      const todosUsuarios = await adminService.obtenerUsuarios()
+      
+      // Filtrar solo agentes activos (rol 4) cuya área también esté activa
+      agentesDisponibles.value = todosUsuarios.filter(u => {
+        if (u.rolId !== 4 || !u.activo) return false
+        
+        // Si el agente no tiene área asignada, no está disponible
+        if (!u.areaId) return false
+        
+        // Verificar que el área del agente esté activa
+        const area = todasAreas.find(a => a.id === u.areaId)
+        return area && area.activo
+      })
+      
+      console.log('[Administration] ✅ Agentes disponibles (usando fallback /admin/usuarios):', agentesDisponibles.value.length)
+    }
   } catch (err: any) {
-    console.error('[Administration] Error cargando agentes:', err)
+    console.error('[Administration] ❌ Error cargando agentes:', err)
+    mostrarFeedback('error', 'No tienes permisos para ver los agentes disponibles')
   }
 }
 
@@ -1953,6 +1984,37 @@ const getRoleBadgeClass = (rolId: number): string => {
 import { getRoleName } from '../../constants/roles'
 
 const getRoleLabel = getRoleName
+
+// Helper para obtener información del estado de solicitud
+const getEstadoInfo = (estado: number | string): { label: string, class: string } => {
+  // Mapeo de estados por número
+  const estadosPorNumero: Record<number, { label: string, class: string }> = {
+    1: { label: 'Nueva', class: 'bg-blue-100 text-blue-700 border border-blue-200' },
+    2: { label: 'En Proceso', class: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
+    3: { label: 'Resuelta', class: 'bg-green-100 text-green-700 border border-green-200' },
+    4: { label: 'Cerrada', class: 'bg-gray-100 text-gray-700 border border-gray-200' },
+    5: { label: 'Rechazada', class: 'bg-red-100 text-red-700 border border-red-200' },
+    6: { label: 'Cancelada', class: 'bg-orange-100 text-orange-700 border border-orange-200' }
+  }
+  
+  // Mapeo de estados por string (backend a veces envía strings)
+  const estadosPorString: Record<string, { label: string, class: string }> = {
+    'Nueva': { label: 'Nueva', class: 'bg-blue-100 text-blue-700 border border-blue-200' },
+    'EnProceso': { label: 'En Proceso', class: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
+    'Resuelta': { label: 'Resuelta', class: 'bg-green-100 text-green-700 border border-green-200' },
+    'Cerrada': { label: 'Cerrada', class: 'bg-gray-100 text-gray-700 border border-gray-200' },
+    'Rechazada': { label: 'Rechazada', class: 'bg-red-100 text-red-700 border border-red-200' },
+    'Cancelada': { label: 'Cancelada', class: 'bg-orange-100 text-orange-700 border border-orange-200' }
+  }
+  
+  // Si es string, buscar en el mapeo de strings
+  if (typeof estado === 'string') {
+    return estadosPorString[estado] || { label: estado, class: 'bg-gray-100 text-gray-500' }
+  }
+  
+  // Si es número, buscar en el mapeo de números
+  return estadosPorNumero[estado] || { label: 'Desconocido', class: 'bg-gray-100 text-gray-500' }
+}
 
 // Cargar datos al montar según la pestaña activa
 onMounted(() => {
