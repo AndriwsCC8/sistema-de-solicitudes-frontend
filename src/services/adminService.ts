@@ -390,6 +390,22 @@ const adminService = {
   },
 
   /**
+   * Obtener TODAS las solicitudes sin asignar del sistema (cualquier tipo)
+   * GET /api/admin/solicitudes/todas-sin-asignar
+   */
+  async obtenerTodasSolicitudesSinAsignar(): Promise<SolicitudSinAsignar[]> {
+    try {
+      console.log('[adminService] 📤 Obteniendo TODAS las solicitudes sin asignar...')
+      const response = await api.get<SolicitudSinAsignar[]>('/admin/solicitudes/todas-sin-asignar')
+      console.log('[adminService] ✅ Todas las solicitudes sin asignar obtenidas:', response.data.length)
+      return response.data
+    } catch (error: any) {
+      console.error('[adminService] ❌ Error al obtener todas las solicitudes sin asignar:', error)
+      throw error
+    }
+  },
+
+  /**
    * Asignar una solicitud a un agente (permite asignación flexible para tipo "Otro")
    * POST /api/solicitudes/{id}/asignar/{usuarioId}
    */

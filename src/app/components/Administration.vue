@@ -152,7 +152,7 @@
         <div class="flex justify-between items-center mb-6">
           <div>
             <h2 class="text-xl font-semibold text-gray-900">Solicitudes Sin Asignar</h2>
-            <p class="text-sm text-gray-600 mt-1">Solicitudes tipo "Otro" que requieren asignación manual</p>
+            <p class="text-sm text-gray-600 mt-1">Todas las solicitudes nuevas sin gestor asignado</p>
           </div>
         </div>
 
@@ -165,7 +165,7 @@
         <!-- Empty State -->
         <div v-else-if="solicitudesSinAsignar.length === 0" class="text-center py-12">
           <p class="text-gray-500">No hay solicitudes sin asignar</p>
-          <p class="text-sm text-gray-400 mt-2">Las solicitudes tipo "Otro" aparecerán aquí</p>
+          <p class="text-sm text-gray-400 mt-2">Todas las solicitudes nuevas sin gestor aparecerán aquí</p>
         </div>
 
         <!-- Solicitudes Cards -->
@@ -216,6 +216,7 @@
                 </div>
               </div>
               <button
+                v-if="puedeSerAsignada(solicitud.estado)"
                 @click="abrirModalAsignarAgente(solicitud)"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
               >
@@ -320,6 +321,7 @@
                 </div>
               </div>
               <button
+                v-if="puedeSerAsignada(solicitud.estado)"
                 @click="abrirModalAsignarAgente(solicitud)"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
               >
@@ -1366,10 +1368,20 @@ const cargarSolicitudesSinAsignar = async () => {
   error.value = null
   
   try {
-    solicitudesSinAsignar.value = await adminService.obtenerSolicitudesSinAsignar()
+    console.log('[Administration] 🔍 Cargando solicitudes sin asignar...')
+    solicitudesSinAsignar.value = await adminService.obtenerTodasSolicitudesSinAsignar()
+    console.log('[Administration] ✅ Solicitudes sin asignar cargadas:', solicitudesSinAsignar.value.length)
+    console.log('[Administration] 📋 Solicitudes:', solicitudesSinAsignar.value)
+    
+    // Debug: mostrar estados de las solicitudes
+    if (solicitudesSinAsignar.value.length > 0) {
+      solicitudesSinAsignar.value.forEach(s => {
+        console.log(`[Administration] 🔹 ID: ${s.id} | Estado: ${s.estado} | Gestor: ${s.gestorAsignadoId || 'null'} | Número: ${s.numeroSolicitud}`)
+      })
+    }
   } catch (err: any) {
     error.value = err.response?.data?.message || err.message || 'Error al cargar solicitudes sin asignar'
-    console.error('[Administration] Error cargando solicitudes sin asignar:', err)
+    console.error('[Administration] ❌ Error cargando solicitudes sin asignar:', err)
   } finally {
     loading.value = false
   }
@@ -2014,6 +2026,18 @@ const getEstadoInfo = (estado: number | string): { label: string, class: string 
   
   // Si es número, buscar en el mapeo de números
   return estadosPorNumero[estado] || { label: 'Desconocido', class: 'bg-gray-100 text-gray-500' }
+}
+
+// Helper para verificar si una solicitud puede ser asignada/reasignada
+// No se pueden asignar solicitudes que están: Rechazada (5), Resuelta (3), Cerrada (4) o Cancelada (6)
+const puedeSerAsignada = (estado: number | string): boolean => {
+  // Convertir a string para comparación uniforme
+  const estadoStr = typeof estado === 'string' ? estado : String(estado)
+  
+  // Estados finales que NO permiten asignación
+  const estadosFinales = ['3', 'Resuelta', '4', 'Cerrada', '5', 'Rechazada', '6', 'Cancelada']
+  
+  return !estadosFinales.includes(estadoStr)
 }
 
 // Cargar datos al montar según la pestaña activa

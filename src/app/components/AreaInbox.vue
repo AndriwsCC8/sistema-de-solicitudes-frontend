@@ -407,11 +407,12 @@ const puedeAsignarseSolicitud = (solicitud: any): boolean => {
   return esGestor && noAsignada
 }
 
-// Admin puede asignar/reasignar a cualquier gestor si NO está resuelta ni rechazada
+// Admin puede asignar/reasignar a cualquier gestor si NO está resuelta, rechazada, cerrada o cancelada
 const puedeAsignarAGestor = (solicitud: any): boolean => {
   const esAdmin = authStore.userRole === ROLES.ADMIN || authStore.userRole === ROLES.SUPER_ADMIN
-  const estadosNoPermitidos = ['Resuelta', 'Rechazada']
+  const estadosNoPermitidos = ['Resuelta', 'Rechazada', 'Cerrada', 'Cancelada']
   const estadoPermitido = !estadosNoPermitidos.includes(solicitud.estado)
+  
   return esAdmin && estadoPermitido
 }
 
