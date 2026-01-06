@@ -353,6 +353,22 @@ const adminService = {
     }
   },
 
+  /**
+   * Activar/Desactivar un tipo de solicitud (toggle activo)
+   * PATCH /api/admin/categorias/{id}/toggle-activo
+   */
+  async toggleActivoCategoria(id: number): Promise<TipoSolicitud> {
+    try {
+      console.log('[adminService] 📤 Cambiando estado de categoría:', id)
+      const response = await api.patch<TipoSolicitud>(`/admin/categorias/${id}/toggle-activo`)
+      console.log('[adminService] ✅ Estado de categoría actualizado:', response.data.activo)
+      return response.data
+    } catch (error: any) {
+      console.error('[adminService] ❌ Error al cambiar estado:', error)
+      throw error
+    }
+  },
+
   // ==================== REPORTES ====================
 
   /**

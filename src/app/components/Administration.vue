@@ -460,9 +460,17 @@
         </div>
 
         <div v-else class="space-y-4">
-          <div v-for="category in categories" :key="category.id" class="border rounded-lg p-4 flex items-center justify-between hover:bg-gray-50">
+          <div v-for="category in categories" :key="category.id" :class="['border rounded-lg p-4 flex items-center justify-between hover:bg-gray-50', !category.activo ? 'bg-gray-50 opacity-75' : '']">
             <div class="flex-1">
-              <h3 class="text-base font-medium text-gray-900">{{ category.nombre }}</h3>
+              <div class="flex items-center gap-2">
+                <h3 class="text-base font-medium text-gray-900">{{ category.nombre }}</h3>
+                <span v-if="!category.activo" class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-200 text-gray-600">
+                  Inactiva
+                </span>
+                <span v-else class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                  Activa
+                </span>
+              </div>
               <p class="text-sm text-gray-600">{{ category.descripcion || 'Sin descripción' }}</p>
               <p class="text-xs text-gray-500 mt-1">Área: {{ category.areaNombre || 'Sin área' }}</p>
             </div>
@@ -473,6 +481,15 @@
                 class="text-[#0f3a72] hover:text-[#0d3260] text-sm"
               >
                 Editar
+              </button>
+              <button 
+                @click="toggleActivoCategoria(category.id, category.nombre, category.activo)"
+                :class="[
+                  'text-sm',
+                  category.activo ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'
+                ]"
+              >
+                {{ category.activo ? 'Desactivar' : 'Activar' }}
               </button>
               <button 
                 @click="eliminarCategoria(category.id, category.nombre)"
@@ -1569,6 +1586,12 @@ const actualizarUsuario = async () => {
 
   console.log('[Administration] 🔄 Actualizando usuario:', editingUser.value.id)
   
+  // 🔒 Validación de seguridad: No permitir que un usuario se desactive a sí mismo
+  if (editingUser.value.activo === false && editingUser.value.id === authStore.user?.id) {
+    mostrarFeedback('error', 'No puedes desactivar tu propia cuenta mientras la estás usando. Pide a otro administrador que lo haga.')
+    return
+  }
+  
   // Validación básica
   if (!editingUser.value.nombre || !editingUser.value.email) {
     mostrarFeedback('error', 'Por favor complete todos los campos obligatorios')
@@ -1855,6 +1878,29 @@ const asignarSolicitud = async () => {
 }
 
 // ==================== CATEGORÍAS ====================
+
+const toggleActivoCategoria = async (id: number, nombre: string, estadoActual: boolean) => {
+  const accion = estadoActual ? 'desactivar' : 'activar'
+  if (!confirm(`¿Estás seguro de que deseas ${accion} la categoría "${nombre}"?`)) {
+    return
+  }
+
+  loading.value = true
+  try {
+    await adminService.toggleActivoCategoria(id)
+    const mensaje = estadoActual 
+      ? 'Categoría desactivada exitosamente. Las solicitudes asociadas permanecen intactas.'
+      : 'Categoría activada exitosamente'
+    mostrarFeedback('success', mensaje)
+    await cargarCategorias()
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || err.message || 'Error al cambiar estado de la categoría'
+    mostrarFeedback('error', errorMsg)
+    console.error('[Administration] Error cambiando estado de categoría:', err)
+  } finally {
+    loading.value = false
+  }
+}
 
 const eliminarCategoria = async (id: number, nombre: string) => {
   if (!confirm(`¿Estás seguro de que deseas eliminar la categoría "${nombre}"? Esta acción no se puede deshacer.`)) {
