@@ -58,6 +58,29 @@
           </button>
         </div>
 
+        <!-- Buscador de usuarios -->
+        <div class="mb-6">
+          <div class="relative">
+            <input
+              v-model="busquedaUsuarios"
+              type="text"
+              placeholder="Buscar por nombre, email, usuario, rol o área..."
+              class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72] focus:border-transparent"
+            />
+            <svg
+              class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <p v-if="busquedaUsuarios" class="text-sm text-gray-500 mt-2">
+            Mostrando {{ usuariosFiltrados.length }} de {{ users.length }} usuarios
+          </p>
+        </div>
+
         <!-- Loading State -->
         <div v-if="loading" class="text-center py-12">
           <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
@@ -78,12 +101,12 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-if="users.length === 0">
+              <tr v-if="usuariosFiltrados.length === 0">
                 <td colspan="6" class="px-6 py-8 text-center text-gray-500">
-                  No hay usuarios registrados
+                  {{ busquedaUsuarios ? 'No se encontraron usuarios que coincidan con la búsqueda' : 'No hay usuarios registrados' }}
                 </td>
               </tr>
-              <tr v-for="user in users" :key="user.id">
+              <tr v-for="user in usuariosFiltrados" :key="user.id">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
                     <div class="w-10 h-10 rounded-full bg-[#0f3a72] flex items-center justify-center text-white font-medium">
@@ -156,6 +179,33 @@
           </div>
         </div>
 
+        <!-- Filtros -->
+        <div class="flex gap-4 mb-6">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Filtrar por Prioridad</label>
+            <select
+              v-model="filtroSinAsignar.prioridad"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            >
+              <option value="">Todas las prioridades</option>
+              <option value="3">Alta</option>
+              <option value="2">Media</option>
+              <option value="1">Baja</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Ordenar por Fecha</label>
+            <select
+              v-model="filtroSinAsignar.ordenFecha"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            >
+              <option value="">Sin ordenar</option>
+              <option value="desc">Más recientes primero</option>
+              <option value="asc">Más antiguas primero</option>
+            </select>
+          </div>
+        </div>
+
         <!-- Loading State -->
         <div v-if="loading" class="text-center py-12">
           <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
@@ -163,15 +213,15 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="solicitudesSinAsignar.length === 0" class="text-center py-12">
-          <p class="text-gray-500">No hay solicitudes sin asignar</p>
-          <p class="text-sm text-gray-400 mt-2">Todas las solicitudes nuevas sin gestor aparecerán aquí</p>
+        <div v-else-if="solicitudesSinAsignarFiltradas.length === 0" class="text-center py-12">
+          <p class="text-gray-500">{{ solicitudesSinAsignar.length === 0 ? 'No hay solicitudes sin asignar' : 'No hay solicitudes que coincidan con los filtros' }}</p>
+          <p class="text-sm text-gray-400 mt-2">{{ solicitudesSinAsignar.length === 0 ? 'Todas las solicitudes nuevas sin gestor aparecerán aquí' : 'Intenta ajustar los filtros' }}</p>
         </div>
 
         <!-- Solicitudes Cards -->
         <div v-else class="space-y-4">
           <div
-            v-for="solicitud in solicitudesSinAsignar"
+            v-for="solicitud in solicitudesSinAsignarFiltradas"
             :key="solicitud.id"
             class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
           >
@@ -180,14 +230,9 @@
                 <div class="flex items-center gap-3 mb-2">
                   <span class="text-sm font-medium text-gray-500">{{ solicitud.numeroSolicitud }}</span>
                   <span
-                    :class="[
-                      'px-2 py-1 text-xs font-medium rounded-full',
-                      solicitud.prioridad === 3 ? 'bg-red-100 text-red-700 border border-red-200' :
-                      solicitud.prioridad === 2 ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-                      'bg-green-100 text-green-700 border border-green-200'
-                    ]"
+                    :class="['px-2 py-1 text-xs font-medium rounded-full', getPrioridadInfo(solicitud.prioridad).class]"
                   >
-                    {{ solicitud.prioridad === 3 ? 'Alta' : solicitud.prioridad === 2 ? 'Media' : 'Baja' }}
+                    {{ getPrioridadInfo(solicitud.prioridad).label }}
                   </span>
                   <span
                     :class="[
@@ -266,6 +311,33 @@
           </div>
         </div>
 
+        <!-- Filtros -->
+        <div class="flex gap-4 mb-6">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Filtrar por Prioridad</label>
+            <select
+              v-model="filtroTipoOtro.prioridad"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            >
+              <option value="">Todas las prioridades</option>
+              <option value="3">Alta</option>
+              <option value="2">Media</option>
+              <option value="1">Baja</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Ordenar por Fecha</label>
+            <select
+              v-model="filtroTipoOtro.ordenFecha"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72]"
+            >
+              <option value="">Sin ordenar</option>
+              <option value="desc">Más recientes primero</option>
+              <option value="asc">Más antiguas primero</option>
+            </select>
+          </div>
+        </div>
+
         <!-- Loading State -->
         <div v-if="loading" class="text-center py-12">
           <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
@@ -273,15 +345,15 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="solicitudesTipoOtro.length === 0" class="text-center py-12">
-          <p class="text-gray-500">No hay solicitudes tipo "Otro"</p>
-          <p class="text-sm text-gray-400 mt-2">Las solicitudes tipo "Otro" aparecerán aquí</p>
+        <div v-else-if="solicitudesTipoOtroFiltradas.length === 0" class="text-center py-12">
+          <p class="text-gray-500">{{ solicitudesTipoOtro.length === 0 ? 'No hay solicitudes tipo "Otro"' : 'No hay solicitudes que coincidan con los filtros' }}</p>
+          <p class="text-sm text-gray-400 mt-2">{{ solicitudesTipoOtro.length === 0 ? 'Las solicitudes tipo "Otro" aparecerán aquí' : 'Intenta ajustar los filtros' }}</p>
         </div>
 
         <!-- Solicitudes Cards -->
         <div v-else class="space-y-4">
           <div
-            v-for="solicitud in solicitudesTipoOtro"
+            v-for="solicitud in solicitudesTipoOtroFiltradas"
             :key="solicitud.id"
             class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
           >
@@ -290,14 +362,9 @@
                 <div class="flex items-center gap-3 mb-2">
                   <span class="text-sm font-medium text-gray-500">{{ solicitud.numeroSolicitud }}</span>
                   <span
-                    :class="[
-                      'px-2 py-1 text-xs font-medium rounded-full',
-                      solicitud.prioridad === 3 ? 'bg-red-100 text-red-700 border border-red-200' :
-                      solicitud.prioridad === 2 ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-                      'bg-green-100 text-green-700 border border-green-200'
-                    ]"
+                    :class="['px-2 py-1 text-xs font-medium rounded-full', getPrioridadInfo(solicitud.prioridad).class]"
                   >
-                    {{ solicitud.prioridad === 3 ? 'Alta' : solicitud.prioridad === 2 ? 'Media' : 'Baja' }}
+                    {{ getPrioridadInfo(solicitud.prioridad).label }}
                   </span>
                   <span
                     :class="['px-2 py-1 text-xs font-medium rounded-full', getEstadoInfo(solicitud.estado).class]"
@@ -1279,6 +1346,20 @@ const metricas = ref<MetricasGenerales | null>(null)
 const solicitudesSinAsignar = ref<any[]>([])
 const solicitudesTipoOtro = ref<any[]>([])
 
+// Estados para filtros
+const filtroSinAsignar = ref({
+  prioridad: '' as '' | '1' | '2' | '3',
+  ordenFecha: '' as '' | 'asc' | 'desc'
+})
+
+const filtroTipoOtro = ref({
+  prioridad: '' as '' | '1' | '2' | '3',
+  ordenFecha: '' as '' | 'asc' | 'desc'
+})
+
+// Estado para búsqueda de usuarios
+const busquedaUsuarios = ref('')
+
 // Estados de carga y errores
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -1405,6 +1486,104 @@ const cargarMetricas = async () => {
     loading.value = false
   }
 }
+
+// Computed para filtrar usuarios por búsqueda
+const usuariosFiltrados = computed(() => {
+  if (!busquedaUsuarios.value.trim()) {
+    return users.value
+  }
+  
+  const termino = busquedaUsuarios.value.toLowerCase().trim()
+  
+  return users.value.filter(user => {
+    // Buscar en nombre, email, nombreUsuario, rol y área
+    const nombre = (user.nombre || '').toLowerCase()
+    const email = (user.email || '').toLowerCase()
+    const nombreUsuario = (user.nombreUsuario || '').toLowerCase()
+    const rol = (user.rolNombre || getRoleLabel(user.rolId)).toLowerCase()
+    const area = (user.areaNombre || '').toLowerCase()
+    
+    return nombre.includes(termino) || 
+           email.includes(termino) || 
+           nombreUsuario.includes(termino) ||
+           rol.includes(termino) ||
+           area.includes(termino)
+  })
+})
+
+// Computed para filtrar y ordenar solicitudes sin asignar
+const solicitudesSinAsignarFiltradas = computed(() => {
+  let resultado = [...solicitudesSinAsignar.value]
+  
+  // Filtrar por prioridad
+  if (filtroSinAsignar.value.prioridad) {
+    const prioridadSeleccionada = Number(filtroSinAsignar.value.prioridad)
+    resultado = resultado.filter(s => {
+      // El backend puede enviar la prioridad como número o como string
+      let prioridadSolicitud = s.prioridad
+      
+      // Si viene como string, convertir a número
+      if (typeof prioridadSolicitud === 'string') {
+        const mapeo: Record<string, number> = {
+          'Baja': 1,
+          'Media': 2,
+          'Alta': 3
+        }
+        prioridadSolicitud = mapeo[prioridadSolicitud] || 0
+      }
+      
+      return prioridadSolicitud === prioridadSeleccionada
+    })
+  }
+  
+  // Ordenar por fecha
+  if (filtroSinAsignar.value.ordenFecha) {
+    resultado.sort((a, b) => {
+      const fechaA = new Date(a.fechaCreacion).getTime()
+      const fechaB = new Date(b.fechaCreacion).getTime()
+      return filtroSinAsignar.value.ordenFecha === 'asc' ? fechaA - fechaB : fechaB - fechaA
+    })
+  }
+  
+  return resultado
+})
+
+// Computed para filtrar y ordenar solicitudes tipo otro
+const solicitudesTipoOtroFiltradas = computed(() => {
+  let resultado = [...solicitudesTipoOtro.value]
+  
+  // Filtrar por prioridad
+  if (filtroTipoOtro.value.prioridad) {
+    const prioridadSeleccionada = Number(filtroTipoOtro.value.prioridad)
+    resultado = resultado.filter(s => {
+      // El backend puede enviar la prioridad como número o como string
+      let prioridadSolicitud = s.prioridad
+      
+      // Si viene como string, convertir a número
+      if (typeof prioridadSolicitud === 'string') {
+        const mapeo: Record<string, number> = {
+          'Baja': 1,
+          'Media': 2,
+          'Alta': 3
+        }
+        prioridadSolicitud = mapeo[prioridadSolicitud] || 0
+      }
+      
+      return prioridadSolicitud === prioridadSeleccionada
+    })
+  }
+  
+  // Ordenar por fecha
+  if (filtroTipoOtro.value.ordenFecha) {
+    resultado.sort((a, b) => {
+      const fechaA = new Date(a.fechaCreacion).getTime()
+      const fechaB = new Date(b.fechaCreacion).getTime()
+      return filtroTipoOtro.value.ordenFecha === 'asc' ? fechaA - fechaB : fechaB - fechaA
+    })
+  }
+  
+  return resultado
+})
 
 const cargarSolicitudesSinAsignar = async () => {
   loading.value = true
@@ -2070,6 +2249,31 @@ import { getRoleName } from '../../constants/roles'
 const getRoleLabel = getRoleName
 
 // Helper para obtener información del estado de solicitud
+// Helper para obtener información de prioridad (maneja tanto números como strings)
+const getPrioridadInfo = (prioridad: number | string): { label: string, class: string } => {
+  // Mapeo por número
+  const prioridadesPorNumero: Record<number, { label: string, class: string }> = {
+    1: { label: 'Baja', class: 'bg-green-100 text-green-700 border border-green-200' },
+    2: { label: 'Media', class: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
+    3: { label: 'Alta', class: 'bg-red-100 text-red-700 border border-red-200' }
+  }
+  
+  // Mapeo por string (si el backend envía strings)
+  const prioridadesPorString: Record<string, { label: string, class: string }> = {
+    'Baja': { label: 'Baja', class: 'bg-green-100 text-green-700 border border-green-200' },
+    'Media': { label: 'Media', class: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
+    'Alta': { label: 'Alta', class: 'bg-red-100 text-red-700 border border-red-200' }
+  }
+  
+  // Si es string, buscar en mapeo de strings
+  if (typeof prioridad === 'string') {
+    return prioridadesPorString[prioridad] || { label: prioridad, class: 'bg-gray-100 text-gray-500' }
+  }
+  
+  // Si es número, buscar en mapeo de números
+  return prioridadesPorNumero[prioridad] || { label: 'Desconocida', class: 'bg-gray-100 text-gray-500' }
+}
+
 const getEstadoInfo = (estado: number | string): { label: string, class: string } => {
   // Mapeo de estados por número
   const estadosPorNumero: Record<number, { label: string, class: string }> = {
