@@ -215,16 +215,28 @@
                   <span class="text-gray-400 ml-2">{{ solicitud.solicitanteEmail }}</span>
                 </div>
               </div>
-              <button
-                v-if="puedeSerAsignada(solicitud.estado)"
-                @click="abrirModalAsignarAgente(solicitud)"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Asignar a Gestor
-              </button>
+              <div class="flex items-center gap-2">
+                <button
+                  @click="verDetalle(solicitud.id)"
+                  class="inline-flex items-center gap-2 px-4 py-2 text-[#0f3a72] border border-[#0f3a72] rounded-md hover:bg-[#0f3a72] hover:text-white transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  Ver Detalles
+                </button>
+                <button
+                  v-if="puedeSerAsignada(solicitud.estado)"
+                  @click="abrirModalAsignarAgente(solicitud)"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Asignar a Gestor
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -320,16 +332,28 @@
                   <span class="font-medium">Asignada a:</span> {{ solicitud.gestorAsignado }}
                 </div>
               </div>
-              <button
-                v-if="puedeSerAsignada(solicitud.estado)"
-                @click="abrirModalAsignarAgente(solicitud)"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                {{ solicitud.gestorAsignadoId ? 'Reasignar' : 'Asignar' }}
-              </button>
+              <div class="flex items-center gap-2">
+                <button
+                  @click="verDetalle(solicitud.id)"
+                  class="inline-flex items-center gap-2 px-4 py-2 text-[#0f3a72] border border-[#0f3a72] rounded-md hover:bg-[#0f3a72] hover:text-white transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  Ver Detalles
+                </button>
+                <button
+                  v-if="puedeSerAsignada(solicitud.estado)"
+                  @click="abrirModalAsignarAgente(solicitud)"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-[#0f3a72] text-white rounded-md hover:bg-[#0d3260] transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  {{ solicitud.gestorAsignadoId ? 'Reasignar' : 'Asignar' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1223,10 +1247,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/authStore'
 import { ROLES, hasMinRole } from '../../constants/roles'
 import adminService, { type Usuario, type Area, type TipoSolicitud, type CrearUsuarioDto, type MetricasGenerales } from '../../services/adminService'
 
+const router = useRouter()
 const authStore = useAuthStore()
 // Usar el getter del store para el rol
 const userRole = computed(() => authStore.userRole)
@@ -2084,6 +2110,11 @@ const puedeSerAsignada = (estado: number | string): boolean => {
   const estadosFinales = ['3', 'Resuelta', '4', 'Cerrada', '5', 'Rechazada', '6', 'Cancelada']
   
   return !estadosFinales.includes(estadoStr)
+}
+
+// Helper para navegar al detalle de una solicitud
+const verDetalle = (id: number) => {
+  router.push(`/dashboard/request-detail/${id}`)
 }
 
 // Cargar datos al montar según la pestaña activa
