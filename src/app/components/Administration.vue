@@ -640,23 +640,123 @@
         <p class="text-gray-500">No hay métricas disponibles</p>
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-6">Reportes Disponibles</h2>
-        <div class="space-y-3">
-          <button class="w-full text-left px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors" disabled>
-            📊 Reporte de Solicitudes por Área (Próximamente)
-          </button>
-          <button class="w-full text-left px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors" disabled>
-            📈 Reporte de Desempeño de Agentes (Próximamente)
-          </button>
-          <button class="w-full text-left px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors" disabled>
-            ⏱️ Reporte de Tiempos de Respuesta (Próximamente)
-          </button>
-          <button class="w-full text-left px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors" disabled>
-            📋 Reporte Mensual Consolidado (Próximamente)
-          </button>
+      <!-- Resumen Visual Adicional -->
+      <template v-if="metricas">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Estado de Solicitudes -->
+          <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Distribución por Estado</h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">En Proceso</span>
+                  <span class="font-medium text-blue-600">{{ metricas.solicitudesEnProceso }}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    :style="{ width: metricas.totalSolicitudes > 0 ? `${(metricas.solicitudesEnProceso / metricas.totalSolicitudes) * 100}%` : '0%' }"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Resueltas</span>
+                  <span class="font-medium text-green-600">{{ metricas.solicitudesResueltas }}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    class="bg-green-500 h-2 rounded-full transition-all duration-300"
+                    :style="{ width: metricas.totalSolicitudes > 0 ? `${(metricas.solicitudesResueltas / metricas.totalSolicitudes) * 100}%` : '0%' }"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Rechazadas</span>
+                  <span class="font-medium text-red-600">{{ metricas.solicitudesRechazadas }}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    class="bg-red-500 h-2 rounded-full transition-all duration-300"
+                    :style="{ width: metricas.totalSolicitudes > 0 ? `${(metricas.solicitudesRechazadas / metricas.totalSolicitudes) * 100}%` : '0%' }"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Pendientes</span>
+                  <span class="font-medium text-gray-600">{{ metricas.totalSolicitudes - metricas.solicitudesEnProceso - metricas.solicitudesResueltas - metricas.solicitudesRechazadas }}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    class="bg-gray-400 h-2 rounded-full transition-all duration-300"
+                    :style="{ width: metricas.totalSolicitudes > 0 ? `${((metricas.totalSolicitudes - metricas.solicitudesEnProceso - metricas.solicitudesResueltas - metricas.solicitudesRechazadas) / metricas.totalSolicitudes) * 100}%` : '0%' }"
+                  ></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 italic">
+                  Incluye solicitudes en estados: Nuevas (sin asignar o recién creadas), Cerradas y Canceladas. 
+                  La mayoría son solicitudes en estado "Nueva" que aún no han sido asignadas o procesadas.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Indicadores Visuales -->
+          <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Indicadores Clave</h3>
+            <div class="space-y-4">
+              <div class="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Tasa de Resolución</p>
+                    <p class="text-2xl font-bold text-gray-900">
+                      {{ metricas.totalSolicitudes > 0 ? Math.round((metricas.solicitudesResueltas / metricas.totalSolicitudes) * 100) : 0 }}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">En Progreso</p>
+                    <p class="text-2xl font-bold text-gray-900">
+                      {{ metricas.totalSolicitudes > 0 ? Math.round((metricas.solicitudesEnProceso / metricas.totalSolicitudes) * 100) : 0 }}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Total Procesadas</p>
+                    <p class="text-2xl font-bold text-gray-900">
+                      {{ metricas.solicitudesResueltas + metricas.solicitudesRechazadas }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </template>
     </div>
 
     <!-- Modal: Nuevo Usuario -->
