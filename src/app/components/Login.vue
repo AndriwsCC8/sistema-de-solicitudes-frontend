@@ -30,7 +30,7 @@
               id="email"
               v-model="email"
               type="text"
-              placeholder="superadmin"
+              placeholder="Ingrese su usuario"
               class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0f3a72] focus:border-transparent transition-all"
               required
             />
