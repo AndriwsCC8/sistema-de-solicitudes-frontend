@@ -473,6 +473,25 @@ const adminService = {
       console.error('[adminService] ❌ Error al obtener agentes:', error)
       throw error
     }
+  },
+
+  /**
+   * Exportar reporte del sistema a Excel
+   * GET /api/admin/reportes/exportar-excel
+   * @returns Blob del archivo Excel
+   */
+  async exportarReporteExcel(): Promise<Blob> {
+    try {
+      console.log('[adminService] 📊 Exportando reporte a Excel...')
+      const response = await api.get('/admin/reportes/exportar-excel', {
+        responseType: 'blob'  // Importante: indicar que esperamos un archivo binario
+      })
+      console.log('[adminService] ✅ Reporte Excel obtenido')
+      return response.data
+    } catch (error: any) {
+      console.error('[adminService] ❌ Error al exportar reporte:', error)
+      throw error
+    }
   }
 }
 

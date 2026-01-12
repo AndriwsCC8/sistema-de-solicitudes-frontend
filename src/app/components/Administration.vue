@@ -81,6 +81,45 @@
           </p>
         </div>
 
+        <!-- Filtros por estado -->
+        <div class="mb-6">
+          <div class="flex gap-3">
+            <button
+              @click="filtroEstadoUsuarios = 'todos'"
+              :class="[
+                'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                filtroEstadoUsuarios === 'todos'
+                  ? 'bg-[#0f3a72] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ]"
+            >
+              Todos ({{ users.length }})
+            </button>
+            <button
+              @click="filtroEstadoUsuarios = 'activos'"
+              :class="[
+                'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                filtroEstadoUsuarios === 'activos'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ]"
+            >
+              Activos ({{ users.filter(u => u.activo).length }})
+            </button>
+            <button
+              @click="filtroEstadoUsuarios = 'inactivos'"
+              :class="[
+                'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                filtroEstadoUsuarios === 'inactivos'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ]"
+            >
+              Inactivos ({{ users.filter(u => !u.activo).length }})
+            </button>
+          </div>
+        </div>
+
         <!-- Loading State -->
         <div v-if="loading" class="text-center py-12">
           <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
@@ -138,15 +177,9 @@
                   </button>
                   <button 
                     @click="toggleUsuarioEstado(user)"
-                    class="text-gray-600 hover:text-gray-800 mr-3"
+                    class="text-gray-600 hover:text-gray-800"
                   >
                     {{ user.activo ? 'Desactivar' : 'Activar' }}
-                  </button>
-                  <button 
-                    @click="eliminarUsuario(user.id, user.nombre)"
-                    class="text-red-600 hover:text-red-800"
-                  >
-                    Eliminar
                   </button>
                 </td>
               </tr>
@@ -596,6 +629,25 @@
 
     <!-- Reports -->
     <div v-if="activeTab === 'reports'" class="space-y-6">
+      <!-- Header con botón de exportar -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-900">Reportes del Sistema</h2>
+          <p class="text-sm text-gray-600 mt-1">Visualización de métricas y actividad general</p>
+        </div>
+        <button
+          @click="exportarReporteExcel"
+          :disabled="exportandoExcel"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg v-if="!exportandoExcel" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <div v-else class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+          {{ exportandoExcel ? 'Exportando...' : 'Exportar a Excel' }}
+        </button>
+      </div>
+
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#0f3a72]"></div>
@@ -1460,10 +1512,14 @@ const filtroTipoOtro = ref({
 // Estado para búsqueda de usuarios
 const busquedaUsuarios = ref('')
 
+// Estado para filtro de usuarios por estado
+const filtroEstadoUsuarios = ref<'todos' | 'activos' | 'inactivos'>('todos')
+
 // Estados de carga y errores
 const loading = ref(false)
 const error = ref<string | null>(null)
 const feedback = ref<{ type: 'success' | 'error', message: string } | null>(null)
+const exportandoExcel = ref(false)
 
 // Modales
 const showNewUserModal = ref(false)
@@ -1589,26 +1645,36 @@ const cargarMetricas = async () => {
 
 // Computed para filtrar usuarios por búsqueda
 const usuariosFiltrados = computed(() => {
-  if (!busquedaUsuarios.value.trim()) {
-    return users.value
+  let resultado = users.value
+  
+  // Filtrar por estado
+  if (filtroEstadoUsuarios.value === 'activos') {
+    resultado = resultado.filter(user => user.activo)
+  } else if (filtroEstadoUsuarios.value === 'inactivos') {
+    resultado = resultado.filter(user => !user.activo)
   }
   
-  const termino = busquedaUsuarios.value.toLowerCase().trim()
-  
-  return users.value.filter(user => {
-    // Buscar en nombre, email, nombreUsuario, rol y área
-    const nombre = (user.nombre || '').toLowerCase()
-    const email = (user.email || '').toLowerCase()
-    const nombreUsuario = (user.nombreUsuario || '').toLowerCase()
-    const rol = (user.rolNombre || getRoleLabel(user.rolId)).toLowerCase()
-    const area = (user.areaNombre || '').toLowerCase()
+  // Filtrar por búsqueda
+  if (busquedaUsuarios.value.trim()) {
+    const termino = busquedaUsuarios.value.toLowerCase().trim()
     
-    return nombre.includes(termino) || 
-           email.includes(termino) || 
-           nombreUsuario.includes(termino) ||
-           rol.includes(termino) ||
-           area.includes(termino)
-  })
+    resultado = resultado.filter(user => {
+      // Buscar en nombre, email, nombreUsuario, rol y área
+      const nombre = (user.nombre || '').toLowerCase()
+      const email = (user.email || '').toLowerCase()
+      const nombreUsuario = (user.nombreUsuario || '').toLowerCase()
+      const rol = (user.rolNombre || getRoleLabel(user.rolId)).toLowerCase()
+      const area = (user.areaNombre || '').toLowerCase()
+      
+      return nombre.includes(termino) || 
+             email.includes(termino) || 
+             nombreUsuario.includes(termino) ||
+             rol.includes(termino) ||
+             area.includes(termino)
+    })
+  }
+  
+  return resultado
 })
 
 // Computed para filtrar y ordenar solicitudes sin asignar
@@ -2419,6 +2485,45 @@ const puedeSerAsignada = (estado: number | string): boolean => {
 // Helper para navegar al detalle de una solicitud
 const verDetalle = (id: number) => {
   router.push(`/dashboard/request-detail/${id}`)
+}
+
+// ==================== EXPORTAR REPORTE A EXCEL ====================
+
+const exportarReporteExcel = async () => {
+  exportandoExcel.value = true
+  
+  try {
+    console.log('[Administration] 📊 Exportando reporte a Excel...')
+    
+    // Llamar al endpoint del backend
+    const response = await adminService.exportarReporteExcel()
+    
+    // El backend debería devolver un blob (archivo)
+    // Crear un link temporal para descargar el archivo
+    const url = window.URL.createObjectURL(response)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // Nombre del archivo con fecha actual
+    const fecha = new Date().toISOString().split('T')[0]
+    link.download = `Reporte_Sistema_${fecha}.xlsx`
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // Liberar el objeto URL
+    window.URL.revokeObjectURL(url)
+    
+    console.log('[Administration] ✅ Reporte exportado exitosamente')
+    mostrarFeedback('success', 'Reporte exportado exitosamente')
+  } catch (err: any) {
+    console.error('[Administration] ❌ Error al exportar reporte:', err)
+    const errorMsg = err.response?.data?.message || err.message || 'Error al exportar reporte'
+    mostrarFeedback('error', errorMsg)
+  } finally {
+    exportandoExcel.value = false
+  }
 }
 
 // Cargar datos al montar según la pestaña activa
